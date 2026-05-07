@@ -34,5 +34,3 @@ jobs:
 
       - name: Publish to npm (uses npx npm@latest for OIDC trusted publishing)
         run: npx npm@latest publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
