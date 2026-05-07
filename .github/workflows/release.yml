@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   release:
-    name: Test → Build → Release → Publish
+    name: Test, Build, Release, Publish
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # ── Version bump ────────────────────────────────
+      # -- Version bump
       - name: Determine next version
         id: version
         run: |
@@ -43,7 +43,7 @@ jobs:
           IFS='.' read -r MAJOR MINOR PATCH <<< "$NPM_LATEST"
           NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
           echo "next=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "### Version: $NPM_LATEST → $NEXT" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Version: $NPM_LATEST -> $NEXT" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Update package.json version
         run: |
@@ -52,7 +52,7 @@ jobs:
           mv package.json.tmp package.json
           echo "Updated package.json to $NEXT"
 
-      # ── Quality gates ───────────────────────────────
+      # -- Quality gates
       - name: Type check
         run: bun run typecheck
 
@@ -65,11 +65,11 @@ jobs:
       - name: Test
         run: bun test
 
-      # ── Build ───────────────────────────────────────
+      # -- Build
       - name: Build
         run: bun run build
 
-      # ── Commit version bump ─────────────────────────
+      # -- Commit version bump
       - name: Commit & tag
         run: |
           NEXT="${{ steps.version.outputs.next }}"
@@ -80,7 +80,7 @@ jobs:
           git tag "v${NEXT}"
           git push origin main --tags
 
-      # ── GitHub Release ──────────────────────────────
+      # -- GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -98,6 +98,6 @@ jobs:
         run: |
           NEXT="${{ steps.version.outputs.next }}"
           PACKAGE_NAME=$(jq -r .name package.json)
-          echo "### ✅ Released ${PACKAGE_NAME}@${NEXT}" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Released ${PACKAGE_NAME}@${NEXT}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Release: ${{ github.server_url }}/${{ github.repository }}/releases/tag/v${NEXT}" >> "$GITHUB_STEP_SUMMARY"
           echo "- npm publish will be triggered by publish.yml via the v${NEXT} tag" >> "$GITHUB_STEP_SUMMARY"
