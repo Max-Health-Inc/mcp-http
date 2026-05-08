@@ -19,7 +19,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -31,7 +32,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "ci": "bun run typecheck && bun run lint && bun run format:check && bun test --coverage && bun run build && node -e \"require('fs').existsSync('dist/src/index.js') || process.exit(1)\""
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun test --coverage && bun run build && node -e \"require('fs').existsSync('dist/src/index.js') || process.exit(1)\""
   },
   "peerDependencies": {
     "@modelcontextprotocol/sdk": ">=1.29.0",
