@@ -127,6 +127,170 @@ describe("GET /.well-known/oauth-authorization-server", () => {
 });
 
 // ---------------------------------------------------------------------------
+// AS metadata auto-discovery
+// ---------------------------------------------------------------------------
+
+describe("GET /.well-known/oauth-authorization-server — discoverAuthorizationServer", () => {
+  const AS_METADATA = { issuer: AS, token_endpoint: `${AS}/token` };
+
+  it.serial("returns 200 with fetched metadata on successful discovery", async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: unknown) =>
+      Promise.resolve(
+        new Response(JSON.stringify(AS_METADATA)),
+      )) as unknown as typeof fetch;
+    try {
+      const handler = createMcpHttpHandler(
+        makeConfig({ discoverAuthorizationServer: true }),
+      );
+      const res = await handler(
+        makeReq("/.well-known/oauth-authorization-server", "GET"),
+      );
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { issuer: string };
+      expect(body.issuer).toBe(AS);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it.serial(
+    "fetches from {authorizationServer}/.well-known/oauth-authorization-server",
+    async () => {
+      let capturedUrl = "";
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = ((url: unknown) => {
+        capturedUrl = String(url);
+        return Promise.resolve(new Response(JSON.stringify(AS_METADATA)));
+      }) as unknown as typeof fetch;
+      try {
+        const handler = createMcpHttpHandler(
+          makeConfig({ discoverAuthorizationServer: true }),
+        );
+        await handler(makeReq("/.well-known/oauth-authorization-server", "GET"));
+        expect(capturedUrl).toBe(`${AS}/.well-known/oauth-authorization-server`);
+      } finally {
+        globalThis.fetch = origFetch;
+      }
+    },
+  );
+
+  it.serial(
+    "caches the result — fetch is called only once across multiple requests",
+    async () => {
+      let callCount = 0;
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = ((_url: unknown) => {
+        callCount++;
+        return Promise.resolve(new Response(JSON.stringify(AS_METADATA)));
+      }) as unknown as typeof fetch;
+      try {
+        const handler = createMcpHttpHandler(
+          makeConfig({ discoverAuthorizationServer: true }),
+        );
+        await handler(makeReq("/.well-known/oauth-authorization-server", "GET"));
+        await handler(makeReq("/.well-known/oauth-authorization-server", "GET"));
+        await handler(makeReq("/.well-known/oauth-authorization-server", "GET"));
+        expect(callCount).toBe(1);
+      } finally {
+        globalThis.fetch = origFetch;
+      }
+    },
+  );
+
+  it.serial("returns 502 when discovery fetch fails with network error", async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: unknown) =>
+      Promise.reject(new Error("network error"))) as unknown as typeof fetch;
+    try {
+      const handler = createMcpHttpHandler(
+        makeConfig({ discoverAuthorizationServer: true }),
+      );
+      const res = await handler(
+        makeReq("/.well-known/oauth-authorization-server", "GET"),
+      );
+      expect(res.status).toBe(502);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it.serial("returns 502 when AS returns a non-OK status", async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: unknown) =>
+      Promise.resolve(new Response(null, { status: 404 }))) as unknown as typeof fetch;
+    try {
+      const handler = createMcpHttpHandler(
+        makeConfig({ discoverAuthorizationServer: true }),
+      );
+      const res = await handler(
+        makeReq("/.well-known/oauth-authorization-server", "GET"),
+      );
+      expect(res.status).toBe(502);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it.serial("retries discovery after a previous failure", async () => {
+    let callCount = 0;
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((_url: unknown) => {
+      callCount++;
+      if (callCount === 1) return Promise.reject(new Error("transient error"));
+      return Promise.resolve(new Response(JSON.stringify(AS_METADATA)));
+    }) as unknown as typeof fetch;
+    try {
+      const handler = createMcpHttpHandler(
+        makeConfig({ discoverAuthorizationServer: true }),
+      );
+      const res1 = await handler(
+        makeReq("/.well-known/oauth-authorization-server", "GET"),
+      );
+      expect(res1.status).toBe(502);
+      const res2 = await handler(
+        makeReq("/.well-known/oauth-authorization-server", "GET"),
+      );
+      expect(res2.status).toBe(200);
+      expect(callCount).toBe(2);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it.serial(
+    "static authorizationServerMetadata takes precedence over discoverAuthorizationServer",
+    async () => {
+      let fetchCalled = false;
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = ((_url: unknown) => {
+        fetchCalled = true;
+        return Promise.resolve(
+          new Response(JSON.stringify({ issuer: "https://other.example.com" })),
+        );
+      }) as unknown as typeof fetch;
+      try {
+        const handler = createMcpHttpHandler(
+          makeConfig({
+            authorizationServerMetadata: { issuer: AS },
+            discoverAuthorizationServer: true,
+          }),
+        );
+        const res = await handler(
+          makeReq("/.well-known/oauth-authorization-server", "GET"),
+        );
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { issuer: string };
+        expect(body.issuer).toBe(AS);
+        expect(fetchCalled).toBe(false);
+      } finally {
+        globalThis.fetch = origFetch;
+      }
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
 // OPTIONS preflight
 // ---------------------------------------------------------------------------
 

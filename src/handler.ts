@@ -1,4 +1,9 @@
-import type { McpHttpHandlerConfig, PlatformCtx, McpRequestOutcome } from "./types.js";
+import type {
+  McpHttpHandlerConfig,
+  PlatformCtx,
+  McpRequestOutcome,
+  AuthorizationServerMetadata,
+} from "./types.js";
 import { applyCors, handlePreflight } from "./cors.js";
 import { extractBearer, isJwtExpired } from "./jwt.js";
 import { handleMcpPost } from "./transport.js";
@@ -54,6 +59,35 @@ export type McpHandler = (
 export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
   const mcpPath = config.mcpPath ?? DEFAULT_MCP_PATH;
   const earlyReject = config.earlyRejectExpiredTokens !== false;
+
+  // ------------------------------------------------------------------
+  // Authorization Server metadata — static or auto-discovered
+  // ------------------------------------------------------------------
+  let discoveredMetadata: AuthorizationServerMetadata | null = null;
+  let discoveryInFlight: Promise<AuthorizationServerMetadata | null> | null = null;
+
+  async function resolveAsMetadata(): Promise<AuthorizationServerMetadata | null> {
+    if (discoveredMetadata !== null) return discoveredMetadata;
+
+    // Coalesce concurrent requests onto a single in-flight fetch.
+    if (discoveryInFlight !== null) return discoveryInFlight;
+
+    const url = `${config.authorizationServer}/.well-known/oauth-authorization-server`;
+    discoveryInFlight = globalThis
+      .fetch(url)
+      .then(async (r) => {
+        if (!r.ok) return null;
+        return (await r.json()) as AuthorizationServerMetadata;
+      })
+      .catch(() => null)
+      .then((result) => {
+        discoveryInFlight = null; // allow retry on failure
+        if (result !== null) discoveredMetadata = result;
+        return result;
+      });
+
+    return discoveryInFlight;
+  }
 
   return async (
     req: Request,
@@ -113,17 +147,29 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     }
 
     // -----------------------------------------------------------------------
-    // Well-known: authorization-server metadata (RFC 8414) — optional
+    // Well-known: authorization-server metadata (RFC 8414) — static or discovered
     // -----------------------------------------------------------------------
-    if (
-      pathname === AUTHORIZATION_SERVER_PATH &&
-      req.method === "GET" &&
-      config.authorizationServerMetadata !== undefined
-    ) {
-      return respond(
-        authorizationServerResponse(config.authorizationServerMetadata),
-        "well-known",
-      );
+    if (pathname === AUTHORIZATION_SERVER_PATH && req.method === "GET") {
+      if (config.authorizationServerMetadata !== undefined) {
+        return respond(
+          authorizationServerResponse(config.authorizationServerMetadata),
+          "well-known",
+        );
+      }
+      if (config.discoverAuthorizationServer) {
+        const asMetadata = await resolveAsMetadata();
+        if (asMetadata === null) {
+          return respond(
+            new Response(JSON.stringify({ error: "AS metadata unavailable" }), {
+              status: 502,
+              headers: { "Content-Type": "application/json" },
+            }),
+            "well-known",
+          );
+        }
+        return respond(authorizationServerResponse(asMetadata), "well-known");
+      }
+      return respond(new Response(null, { status: 404 }), "well-known");
     }
 
     // -----------------------------------------------------------------------

@@ -124,10 +124,24 @@ export interface McpHttpHandlerConfig {
   createServer: (bearerToken: string, ctx: PlatformCtx) => McpServer | Promise<McpServer>;
 
   /**
-   * When provided, serves this document at
+   * When provided, serves this document verbatim at
    * `GET /.well-known/oauth-authorization-server`.
+   *
+   * Takes precedence over `discoverAuthorizationServer`.
    */
   authorizationServerMetadata?: AuthorizationServerMetadata;
+
+  /**
+   * When `true`, mcp-http fetches the AS metadata document from
+   * `{authorizationServer}/.well-known/oauth-authorization-server` on first
+   * request and proxies it at the same well-known path.
+   *
+   * The result is cached on success. Failed fetches are not cached — the next
+   * request will retry. Ignored when `authorizationServerMetadata` is set.
+   *
+   * Default: `false`.
+   */
+  discoverAuthorizationServer?: boolean;
 
   /**
    * Extra fields merged into the protected-resource metadata response.
