@@ -17,7 +17,10 @@
       "import": "./dist/cloudflare/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "bun run ci",
@@ -49,6 +52,10 @@
     "typescript-eslint": "^8.59.2"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Max-Health-Inc/mcp-http"
+  },
   "publishConfig": {
     "access": "public"
   }
