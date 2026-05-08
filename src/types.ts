@@ -86,6 +86,7 @@ export type McpRequestOutcome =
   | "unauthorized"
   | "token-expired"
   | "method-not-allowed"
+  | "not-found"
   | "error";
 
 export interface McpRequestEvent {

@@ -59,6 +59,9 @@ export type McpHandler = (
 export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
   const mcpPath = config.mcpPath ?? DEFAULT_MCP_PATH;
   const earlyReject = config.earlyRejectExpiredTokens !== false;
+  // Normalize: strip trailing slash so URLs like "https://auth.example.com/" don't
+  // produce double slashes in discovery URLs or leak into authorization_servers.
+  const authorizationServer = config.authorizationServer.replace(/\/+$/, "");
 
   // ------------------------------------------------------------------
   // Authorization Server metadata — static or auto-discovered
@@ -72,7 +75,7 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     // Coalesce concurrent requests onto a single in-flight fetch.
     if (discoveryInFlight !== null) return discoveryInFlight;
 
-    const url = `${config.authorizationServer}/.well-known/oauth-authorization-server`;
+    const url = `${authorizationServer}/.well-known/oauth-authorization-server`;
     discoveryInFlight = globalThis
       .fetch(url)
       .then(async (r) => {
@@ -139,7 +142,7 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
       return respond(
         protectedResourceResponse(
           req.url,
-          config.authorizationServer,
+          authorizationServer,
           config.protectedResourceMetadata,
         ),
         "well-known",
@@ -176,10 +179,13 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     // MCP endpoint — non-POST methods → 405
     // -----------------------------------------------------------------------
     if (pathname === mcpPath && req.method !== "POST") {
+      // When CORS is enabled, OPTIONS is handled earlier (returns 204). If we
+      // reach here with OPTIONS it means cors:false — don't advertise OPTIONS.
+      const allowMethods = config.cors !== false ? "POST, OPTIONS" : "POST";
       return respond(
         new Response(null, {
           status: 405,
-          headers: { Allow: "POST, OPTIONS" },
+          headers: { Allow: allowMethods },
         }),
         "method-not-allowed",
       );
@@ -235,6 +241,6 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     // -----------------------------------------------------------------------
     // No route matched — 404
     // -----------------------------------------------------------------------
-    return respond(new Response(null, { status: 404 }), "error");
+    return respond(new Response(null, { status: 404 }), "not-found");
   };
 }

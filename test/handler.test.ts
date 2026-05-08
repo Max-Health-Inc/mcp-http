@@ -524,3 +524,74 @@ describe("createServer error propagation", () => {
     expect(res.status).toBe(503);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TDD: Bug — authorizationServer trailing slash normalization
+// ---------------------------------------------------------------------------
+
+describe("authorizationServer trailing slash normalization", () => {
+  it("strips trailing slash from authorization_servers in PR metadata", async () => {
+    const handler = createMcpHttpHandler(makeConfig({ authorizationServer: `${AS}/` }));
+    const res = await handler(makeReq("/.well-known/oauth-protected-resource", "GET"));
+    const body = (await res.json()) as { authorization_servers: string[] };
+    // Trailing slash on authorizationServer must be stripped so downstream
+    // clients can match it against the AS's issuer claim (RFC 8414 §2 forbids
+    // trailing slashes on issuer identifiers).
+    expect(body.authorization_servers[0]).toBe(AS);
+  });
+
+  it.serial("strips trailing slash before building the AS discovery URL", async () => {
+    let capturedUrl = "";
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = ((url: unknown) => {
+      capturedUrl = String(url);
+      return Promise.resolve(new Response(JSON.stringify({ issuer: AS })));
+    }) as unknown as typeof fetch;
+    try {
+      const handler = createMcpHttpHandler(
+        makeConfig({ authorizationServer: `${AS}/`, discoverAuthorizationServer: true }),
+      );
+      await handler(makeReq("/.well-known/oauth-authorization-server", "GET"));
+      // Must NOT produce a double slash like "https://auth.example.com//.well-known/..."
+      expect(capturedUrl).toBe(`${AS}/.well-known/oauth-authorization-server`);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TDD: Bug — cors:false OPTIONS Allow header
+// ---------------------------------------------------------------------------
+
+describe("cors: false — OPTIONS Allow header", () => {
+  it("does not list OPTIONS in Allow header when cors is disabled", async () => {
+    const handler = createMcpHttpHandler(makeConfig({ cors: false }));
+    const res = await handler(makeReq("/mcp", "OPTIONS"));
+    expect(res.status).toBe(405);
+    // When cors is disabled the handler does not handle OPTIONS, so it must
+    // not advertise OPTIONS as an allowed method in the Allow header.
+    expect(res.headers.get("Allow")).not.toContain("OPTIONS");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TDD: Bug — onRequest outcome for unmatched routes
+// ---------------------------------------------------------------------------
+
+describe("onRequest outcome for unmatched routes", () => {
+  it("reports 'not-found' outcome (not 'error') for a 404", async () => {
+    const events: Array<{ outcome: string; status: number }> = [];
+    const handler = createMcpHttpHandler(
+      makeConfig({
+        onRequest: (ev) => {
+          events.push({ outcome: ev.outcome, status: ev.status });
+        },
+      }),
+    );
+    await handler(makeReq("/no-such-path", "GET"));
+    expect(events[0]?.status).toBe(404);
+    // "error" outcome must be reserved for actual server errors (5xx), not 404s.
+    expect(events[0]?.outcome).toBe("not-found");
+  });
+});
