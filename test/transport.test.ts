@@ -25,11 +25,13 @@ describe("handleMcpPost — server.close() lifecycle", () => {
     const server = makeServer();
     const closeSpy = spyOn(server, "close");
 
-    await handleMcpPost({
+    const res = await handleMcpPost({
       server,
       req: makePostReq({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
     });
 
+    // Consume body — for SSE responses, close is deferred until stream ends
+    await res.text();
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -45,7 +47,8 @@ describe("handleMcpPost — server.close() lifecycle", () => {
     });
 
     // The transport may or may not throw — we just care close() was called
-    await handleMcpPost({ server, req: badReq }).catch(() => undefined);
+    const res = await handleMcpPost({ server, req: badReq }).catch(() => undefined);
+    if (res) await res.text();
 
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
@@ -118,5 +121,76 @@ describe("handleMcpPost — Accept normalisation", () => {
       }),
     });
     expect(res).toBeInstanceOf(Response);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SSE stream lifecycle — server.close() must be deferred
+// ---------------------------------------------------------------------------
+
+describe("handleMcpPost — SSE stream lifecycle", () => {
+  it("does not call server.close() before response body is consumed", async () => {
+    const server = makeServer();
+    // Register a tool so the initialize response returns something meaningful
+    server.registerTool("ping", { description: "ping tool" }, () =>
+      Promise.resolve({ content: [{ type: "text", text: "pong" }] }),
+    );
+
+    const closeSpy = spyOn(server, "close");
+
+    const res = await handleMcpPost({
+      server,
+      req: new Request(`${BASE}/mcp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      }),
+    });
+
+    // If the response is SSE, server.close() must NOT have been called yet
+    if (res.headers.get("Content-Type")?.includes("text/event-stream")) {
+      expect(closeSpy).not.toHaveBeenCalled();
+      // Consume the body — this triggers the deferred close
+      await res.text();
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    } else {
+      // JSON response — close is called immediately
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("calls server.close() when an SSE stream body is fully consumed", async () => {
+    const server = makeServer();
+    const closeSpy = spyOn(server, "close");
+
+    const res = await handleMcpPost({
+      server,
+      req: new Request(`${BASE}/mcp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      }),
+    });
+
+    // Consume the full response
+    await res.text();
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls server.close() on error in the catch branch", async () => {
+    const server = makeServer();
+    spyOn(server, "connect").mockImplementation(() => {
+      throw new Error("forced connect failure");
+    });
+    const closeSpy = spyOn(server, "close");
+
+    await handleMcpPost({ server, req: makePostReq() });
+    expect(closeSpy).toHaveBeenCalledTimes(1);
   });
 });

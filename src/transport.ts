@@ -50,7 +50,8 @@ export interface HandleMcpPostOptions {
  * 1. Instantiate a stateless `WebStandardStreamableHTTPServerTransport`
  * 2. Connect the `McpServer` to it
  * 3. Delegate to `transport.handleRequest(req)`
- * 4. Close the server in `finally` (even on throw)
+ * 4. Close the server when the response body has been fully consumed
+ *    (deferred for SSE streams; immediate for JSON responses)
  *
  * Returns the `Response` produced by the transport. On unhandled errors
  * the `onError` hook is called; if it returns a `Response` that is used,
@@ -66,8 +67,28 @@ export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Resp
   try {
     await server.connect(transport);
     const normalizedReq = withNormalizedAccept(req);
-    return await transport.handleRequest(normalizedReq);
+    const res = await transport.handleRequest(normalizedReq);
+
+    // SSE responses have a live ReadableStream body — the SDK writes
+    // responses asynchronously via transport.send(). Calling server.close()
+    // immediately would kill the stream before the client receives data.
+    // Defer cleanup until the stream completes or is cancelled.
+    if (res.body instanceof ReadableStream) {
+      const original = res.body as ReadableStream<Uint8Array>;
+      const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+      void original.pipeTo(writable).finally(() => void server.close());
+      return new Response(readable, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+      });
+    }
+
+    // Non-streaming (JSON) responses are complete — safe to close now.
+    await server.close();
+    return res;
   } catch (err: unknown) {
+    await server.close();
     if (onError) {
       try {
         const override = await onError(err, req);
@@ -84,7 +105,5 @@ export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Resp
       JSON_RPC_ERROR_CODES.INTERNAL_ERROR,
       "Internal server error",
     );
-  } finally {
-    await server.close();
   }
 }
