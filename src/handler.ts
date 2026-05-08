@@ -18,6 +18,9 @@ import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
 
 const DEFAULT_MCP_PATH = "/mcp";
 
+/** How long a successfully discovered AS metadata document is cached (ms). */
+const AS_METADATA_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 /** Attach CORS headers to any `Response`, returning a new `Response` with those headers merged. */
 function withCors(res: Response, req: Request, config: McpHttpHandlerConfig): Response {
   if (config.cors === false) return res;
@@ -31,7 +34,18 @@ function withCors(res: Response, req: Request, config: McpHttpHandlerConfig): Re
   });
 }
 
-/** Build a 401 response with the `WWW-Authenticate` resource-metadata pointer. */
+/**
+ * Build a 401 response with the `WWW-Authenticate` resource-metadata pointer.
+ *
+ * **Note — Host-header trust:** `req.url` is used to derive the origin, so
+ * the accuracy of the pointer depends on the runtime correctly normalising
+ * the request URL. On Cloudflare Workers this is always the worker's own
+ * domain. On Node / Bun / Deno served directly (without a reverse proxy that
+ * sets a canonical `Host`), a client could supply a spoofed `Host` header and
+ * receive a `WWW-Authenticate` URL pointing to an attacker-controlled host.
+ * Mitigate by running behind a reverse proxy that enforces the `Host` header,
+ * or by configuring a `publicOrigin` at the edge/platform level.
+ */
 function unauthorizedResponse(req: Request): Response {
   const origin = new URL(req.url).origin;
   const resourceMetadataUrl = `${origin}${PROTECTED_RESOURCE_PATH}`;
@@ -67,10 +81,17 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
   // Authorization Server metadata — static or auto-discovered
   // ------------------------------------------------------------------
   let discoveredMetadata: AuthorizationServerMetadata | null = null;
+  let discoveredAt: number | null = null;
   let discoveryInFlight: Promise<AuthorizationServerMetadata | null> | null = null;
 
   async function resolveAsMetadata(): Promise<AuthorizationServerMetadata | null> {
-    if (discoveredMetadata !== null) return discoveredMetadata;
+    // Return cached value if still within TTL.
+    if (discoveredMetadata !== null && discoveredAt !== null) {
+      if (Date.now() - discoveredAt < AS_METADATA_TTL_MS) return discoveredMetadata;
+      // TTL expired — clear so the next request re-fetches.
+      discoveredMetadata = null;
+      discoveredAt = null;
+    }
 
     // Coalesce concurrent requests onto a single in-flight fetch.
     if (discoveryInFlight !== null) return discoveryInFlight;
@@ -85,7 +106,10 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
       .catch(() => null)
       .then((result) => {
         discoveryInFlight = null; // allow retry on failure
-        if (result !== null) discoveredMetadata = result;
+        if (result !== null) {
+          discoveredMetadata = result;
+          discoveredAt = Date.now();
+        }
         return result;
       });
 

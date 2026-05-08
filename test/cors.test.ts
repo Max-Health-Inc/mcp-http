@@ -24,10 +24,18 @@ describe("applyCors — origin: '*' (default)", () => {
     expect(headers.get("Access-Control-Allow-Credentials")).toBeNull();
   });
 
-  it("sets ACAC when credentials: true", () => {
+  it("throws when credentials: true is combined with wildcard origin (implicit)", () => {
     const headers = new Headers();
-    applyCors(headers, makeReq(), { credentials: true });
-    expect(headers.get("Access-Control-Allow-Credentials")).toBe("true");
+    expect(() => {
+      applyCors(headers, makeReq(), { credentials: true });
+    }).toThrow("[mcp-http]");
+  });
+
+  it("throws when credentials: true is combined with origin: '*'", () => {
+    const headers = new Headers();
+    expect(() => {
+      applyCors(headers, makeReq(), { credentials: true, origin: "*" });
+    }).toThrow("[mcp-http]");
   });
 
   it("includes all MCP-required allow headers", () => {
@@ -61,6 +69,26 @@ describe("applyCors — origin: '*' (default)", () => {
     const exposed = headers.get("Access-Control-Expose-Headers") ?? "";
     expect(exposed).toContain("X-Rate-Limit");
     expect(exposed).toContain("Mcp-Session-Id");
+  });
+});
+
+describe("applyCors — credentials with explicit origin", () => {
+  it("sets ACAC when credentials: true and origin is an explicit string", () => {
+    const headers = new Headers();
+    applyCors(headers, makeReq("https://app.example.com"), {
+      credentials: true,
+      origin: "https://app.example.com",
+    });
+    expect(headers.get("Access-Control-Allow-Credentials")).toBe("true");
+  });
+
+  it("sets ACAC when credentials: true and origin is a string[]", () => {
+    const headers = new Headers();
+    applyCors(headers, makeReq("https://app.example.com"), {
+      credentials: true,
+      origin: ["https://app.example.com"],
+    });
+    expect(headers.get("Access-Control-Allow-Credentials")).toBe("true");
   });
 });
 

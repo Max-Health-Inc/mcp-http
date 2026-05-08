@@ -177,7 +177,7 @@ describe("GET /.well-known/oauth-authorization-server — discoverAuthorizationS
   );
 
   it.serial(
-    "caches the result — fetch is called only once across multiple requests",
+    "caches the result — fetch is called only once across multiple requests within TTL",
     async () => {
       let callCount = 0;
       const origFetch = globalThis.fetch;
@@ -198,6 +198,36 @@ describe("GET /.well-known/oauth-authorization-server — discoverAuthorizationS
       }
     },
   );
+
+  it.serial("re-fetches after TTL expiry", async () => {
+    let callCount = 0;
+    const origFetch = globalThis.fetch;
+    const origDateNow = Date.now;
+    let mockNow = origDateNow();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Date as any).now = () => mockNow;
+    globalThis.fetch = ((_url: unknown) => {
+      callCount++;
+      return Promise.resolve(new Response(JSON.stringify(AS_METADATA)));
+    }) as unknown as typeof fetch;
+    try {
+      const handler = createMcpHttpHandler(
+        makeConfig({ discoverAuthorizationServer: true }),
+      );
+      await handler(makeReq("/.well-known/oauth-authorization-server", "GET"));
+      expect(callCount).toBe(1);
+
+      // Advance mock clock past the 5-minute TTL.
+      mockNow += 6 * 60 * 1000;
+
+      await handler(makeReq("/.well-known/oauth-authorization-server", "GET"));
+      expect(callCount).toBe(2);
+    } finally {
+      globalThis.fetch = origFetch;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (Date as any).now = origDateNow;
+    }
+  });
 
   it.serial("returns 502 when discovery fetch fails with network error", async () => {
     const origFetch = globalThis.fetch;
