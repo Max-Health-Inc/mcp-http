@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prepublishOnly": "bun run ci",
+    "prepublishOnly": "bun run check",
     "test": "bun test",
     "test:coverage": "bun test --coverage --coverage-threshold 0.9 --coverage-include-source-map",
     "lint": "eslint .",

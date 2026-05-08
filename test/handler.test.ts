@@ -626,3 +626,84 @@ describe("onRequest outcome for unmatched routes", () => {
     expect(events[0]?.outcome).toBe("not-found");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Public (unauthenticated) endpoints — authorizationServer omitted
+// ---------------------------------------------------------------------------
+
+describe("public endpoint — authorizationServer omitted", () => {
+  function makePublicConfig(
+    overrides: Partial<McpHttpHandlerConfig> = {},
+  ): McpHttpHandlerConfig {
+    return {
+      createServer: (_token, _ctx) => makeServer(),
+      ...overrides,
+    };
+  }
+
+  it("does not throw during construction", () => {
+    expect(() => createMcpHttpHandler(makePublicConfig())).not.toThrow();
+  });
+
+  it("does not 401 on POST /mcp without a Bearer token", async () => {
+    const handler = createMcpHttpHandler(makePublicConfig());
+    const res = await handler(
+      new Request(`${BASE}/mcp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      }),
+    );
+    expect(res.status).not.toBe(401);
+  });
+
+  it("calls createServer with null token", async () => {
+    const receivedTokens: Array<string | null> = [];
+    const handler = createMcpHttpHandler(
+      makePublicConfig({
+        createServer: (token, _ctx) => {
+          receivedTokens.push(token);
+          return makeServer();
+        },
+      }),
+    );
+    await handler(
+      new Request(`${BASE}/mcp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      }),
+    );
+    expect(receivedTokens[0]).toBeNull();
+  });
+
+  it("returns 404 for GET /.well-known/oauth-protected-resource", async () => {
+    const handler = createMcpHttpHandler(makePublicConfig());
+    const res = await handler(makeReq("/.well-known/oauth-protected-resource", "GET"));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for GET /.well-known/oauth-authorization-server", async () => {
+    const handler = createMcpHttpHandler(makePublicConfig());
+    const res = await handler(makeReq("/.well-known/oauth-authorization-server", "GET"));
+    expect(res.status).toBe(404);
+  });
+
+  it("still returns 405 for non-POST on /mcp", async () => {
+    const handler = createMcpHttpHandler(makePublicConfig());
+    const res = await handler(makeReq("/mcp", "GET"));
+    expect(res.status).toBe(405);
+  });
+
+  it("still handles OPTIONS preflight when CORS is enabled", async () => {
+    const handler = createMcpHttpHandler(makePublicConfig());
+    const res = await handler(makeReq("/mcp", "OPTIONS"));
+    expect(res.status).toBe(204);
+  });
+
+  it("throws when authorizationServer is provided but invalid", () => {
+    expect(() =>
+      createMcpHttpHandler(makePublicConfig({ authorizationServer: "not-a-url" })),
+    ).toThrow("[mcp-http]");
+  });
+});

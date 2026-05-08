@@ -109,8 +109,12 @@ export interface McpHttpHandlerConfig {
    * Base URL of the external OAuth Authorization Server (the issuer).
    * Used to populate `authorization_servers` in the protected-resource
    * metadata doc and optionally to proxy AS metadata.
+   *
+   * Omit (or set to `undefined`) for fully public, unauthenticated endpoints.
+   * When absent the Bearer gate is skipped, `createServer` receives `null` as
+   * the token, and the RFC 9728 well-known routes return 404.
    */
-  authorizationServer: string;
+  authorizationServer?: string;
 
   /**
    * Path the MCP endpoint listens on. Must start with `/`.
@@ -120,9 +124,13 @@ export interface McpHttpHandlerConfig {
 
   /**
    * Factory invoked per-request after Bearer extraction.
-   * May be async. Receives the raw Bearer token string and platform context.
+   * May be async. Receives the raw Bearer token string (or `null` for public
+   * endpoints where `authorizationServer` is not configured) and platform context.
    */
-  createServer: (bearerToken: string, ctx: PlatformCtx) => McpServer | Promise<McpServer>;
+  createServer: (
+    bearerToken: string | null,
+    ctx: PlatformCtx,
+  ) => McpServer | Promise<McpServer>;
 
   /**
    * When provided, serves this document verbatim at

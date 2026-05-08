@@ -50,7 +50,7 @@ export type McpHonoConfig<E extends Env = Env> = Omit<
   "createServer"
 > & {
   createServer: (
-    bearerToken: string,
+    bearerToken: string | null,
     ctx: HonoPlatformCtx<E>,
   ) => ReturnType<McpHttpHandlerConfig["createServer"]>;
 };
@@ -71,7 +71,7 @@ export function mcpHono<E extends Env = Env>(config: McpHonoConfig<E>): Hono<E> 
     // Build a single-use handler that captures `c` in its closure.
     const handler = createMcpHttpHandler({
       ...config,
-      createServer: (token: string, ctx: PlatformCtx) =>
+      createServer: (token: string | null, ctx: PlatformCtx) =>
         config.createServer(token, { ...ctx, c }),
     });
 
