@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-08
+
+### Fixed
+
+- **Security** — `applyCors()` now throws at call-time when `credentials: true` is paired with a wildcard origin (`"*"` or omitted). This combination is spec-invalid (browsers silently ignore `Allow-Credentials` with a wildcard origin) and previously emitted misleading headers without any warning.
+- **Security** — Discovered Authorization Server metadata is now cached with a 5-minute TTL (previously cached for the lifetime of the process). Stale metadata is now re-fetched after the TTL expires, preventing prolonged serving of outdated AS endpoint URLs after key rotation or configuration changes.
+
+### Documentation
+
+- **Security** — `forwardBearer()` JSDoc now includes an explicit SSRF / credential-exfiltration warning: callers must never pass URLs derived from untrusted input (e.g. MCP tool arguments) to the returned fetch function.
+- `unauthorizedResponse()` internal JSDoc clarifies the Host-header trust assumption and recommends running behind a normalising reverse proxy on non-Cloudflare deployments.
+
 ## [0.1.2] — 2026-05-08
 
 ### Added

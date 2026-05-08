@@ -46,7 +46,10 @@ function resolveOrigin(req: Request, origin: CorsOptions["origin"]): string | nu
 export function applyCors(headers: Headers, req: Request, options: CorsOptions): void {
   // Guard: credentials:true + wildcard origin is spec-invalid and silently
   // broken in browsers — fail loudly so misconfiguration is caught early.
-  if (options.credentials === true && (options.origin === "*" || options.origin === undefined)) {
+  if (
+    options.credentials === true &&
+    (options.origin === "*" || options.origin === undefined)
+  ) {
     throw new Error(
       "[mcp-http] CORS misconfiguration: credentials: true requires an explicit non-wildcard origin. " +
         'Set cors.origin to a string or string[] (e.g. ["https://app.example.com"]) when using credentials: true.',
