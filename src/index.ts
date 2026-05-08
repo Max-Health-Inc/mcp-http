@@ -80,12 +80,14 @@ export type { McpHandler };
  */
 export function createMcpHttpHandler(config: McpHttpHandlerConfig): McpHandler {
   // Validate at construction time — fail loud at the boundary.
-  try {
-    new URL(config.authorizationServer);
-  } catch {
-    throw new Error(
-      `[mcp-http] authorizationServer must be a valid URL, got: "${config.authorizationServer}"`,
-    );
+  if (config.authorizationServer !== undefined) {
+    try {
+      new URL(config.authorizationServer);
+    } catch {
+      throw new Error(
+        `[mcp-http] authorizationServer must be a valid URL, got: "${config.authorizationServer}"`,
+      );
+    }
   }
 
   const mcpPath = config.mcpPath ?? "/mcp";

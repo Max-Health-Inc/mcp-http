@@ -75,7 +75,10 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
   const earlyReject = config.earlyRejectExpiredTokens !== false;
   // Normalize: strip trailing slash so URLs like "https://auth.example.com/" don't
   // produce double slashes in discovery URLs or leak into authorization_servers.
-  const authorizationServer = config.authorizationServer.replace(/\/+$/, "");
+  // null when authorizationServer is not configured (public endpoint).
+  const authorizationServer = config.authorizationServer
+    ? config.authorizationServer.replace(/\/+$/, "")
+    : null;
 
   // ------------------------------------------------------------------
   // Authorization Server metadata — static or auto-discovered
@@ -85,6 +88,13 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
   let discoveryInFlight: Promise<AuthorizationServerMetadata | null> | null = null;
 
   async function resolveAsMetadata(): Promise<AuthorizationServerMetadata | null> {
+    // resolveAsMetadata is only called after an authorizationServer null-check in the
+    // request handler, but TypeScript can't narrow the closed-over variable through
+    // the function boundary. Guard here so the template literal below stays typed
+    // as `string` and satisfies the no-null-in-template lint rule.
+    const as = authorizationServer;
+    if (as === null) return null;
+
     // Return cached value if still within TTL.
     if (discoveredMetadata !== null && discoveredAt !== null) {
       if (Date.now() - discoveredAt < AS_METADATA_TTL_MS) return discoveredMetadata;
@@ -96,7 +106,7 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     // Coalesce concurrent requests onto a single in-flight fetch.
     if (discoveryInFlight !== null) return discoveryInFlight;
 
-    const url = `${authorizationServer}/.well-known/oauth-authorization-server`;
+    const url = `${as}/.well-known/oauth-authorization-server`;
     discoveryInFlight = globalThis
       .fetch(url)
       .then(async (r) => {
@@ -163,6 +173,9 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     // Well-known: protected-resource metadata (RFC 9728)
     // -----------------------------------------------------------------------
     if (pathname === PROTECTED_RESOURCE_PATH && req.method === "GET") {
+      if (authorizationServer === null) {
+        return respond(new Response(null, { status: 404 }), "not-found");
+      }
       const origin = new URL(req.url).origin;
       const resourceUrl = `${origin}${mcpPath}`;
       return respond(
@@ -179,6 +192,9 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     // Well-known: authorization-server metadata (RFC 8414) — static or discovered
     // -----------------------------------------------------------------------
     if (pathname === AUTHORIZATION_SERVER_PATH && req.method === "GET") {
+      if (authorizationServer === null) {
+        return respond(new Response(null, { status: 404 }), "not-found");
+      }
       if (config.authorizationServerMetadata !== undefined) {
         return respond(
           authorizationServerResponse(config.authorizationServerMetadata),
@@ -221,14 +237,18 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     // MCP endpoint — POST: auth gate → createServer → transport
     // -----------------------------------------------------------------------
     if (pathname === mcpPath && req.method === "POST") {
-      const token = extractBearer(req.headers.get("Authorization"));
+      let token: string | null = null;
 
-      if (token === null) {
-        return respond(unauthorizedResponse(req), "unauthorized");
-      }
+      if (authorizationServer !== null) {
+        token = extractBearer(req.headers.get("Authorization"));
 
-      if (earlyReject && isJwtExpired(token)) {
-        return respond(unauthorizedResponse(req), "token-expired");
+        if (token === null) {
+          return respond(unauthorizedResponse(req), "unauthorized");
+        }
+
+        if (earlyReject && isJwtExpired(token)) {
+          return respond(unauthorizedResponse(req), "token-expired");
+        }
       }
 
       const ctx: PlatformCtx = { request: req, ...platformCtx };
