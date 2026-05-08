@@ -116,17 +116,18 @@ Deno.serve(handler);
 
 `createMcpHttpHandler(config)` accepts a `McpHttpHandlerConfig` object:
 
-| Option                        | Type                                 | Default           | Description                                                                                                             |
-| ----------------------------- | ------------------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `authorizationServer`         | `string`                             | **(required)**    | OAuth Authorization Server URL (issuer). Populates `authorization_servers` in the protected-resource metadata.          |
-| `createServer`                | `(token, ctx) => McpServer`          | **(required)**    | Factory called per-request after Bearer extraction. Receives the raw token and a `PlatformCtx`. May be async.           |
-| `mcpPath`                     | `string`                             | `"/mcp"`          | Path the MCP endpoint listens on. Must start with `/`.                                                                  |
-| `earlyRejectExpiredTokens`    | `boolean`                            | `true`            | Reject JWTs with expired `exp` before hitting upstream. Set `false` for opaque tokens.                                  |
-| `cors`                        | `CorsOptions \| false`               | `{ origin: "*" }` | CORS configuration. Set `false` to disable.                                                                             |
-| `authorizationServerMetadata` | `AuthorizationServerMetadata`        | —                 | If provided, serves at `GET /.well-known/oauth-authorization-server`.                                                   |
-| `protectedResourceMetadata`   | `Partial<ProtectedResourceMetadata>` | —                 | Extra fields merged into the protected-resource metadata (`resource` and `authorization_servers` cannot be overridden). |
-| `onRequest`                   | `(event) => void`                    | —                 | Observability hook called once per request with outcome, status, and duration.                                          |
-| `onError`                     | `(err, req) => Response?`            | —                 | Error hook. Return a `Response` to override the default JSON-RPC 500.                                                   |
+| Option                        | Type                                 | Default           | Description                                                                                                                                                                       |
+| ----------------------------- | ------------------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `authorizationServer`         | `string`                             | **(required)**    | OAuth Authorization Server URL (issuer). Trailing slash is stripped automatically. Populates `authorization_servers` in the protected-resource metadata.                          |
+| `createServer`                | `(token, ctx) => McpServer`          | **(required)**    | Factory called per-request after Bearer extraction. Receives the raw token and a `PlatformCtx`. May be async.                                                                     |
+| `mcpPath`                     | `string`                             | `"/mcp"`          | Path the MCP endpoint listens on. Must start with `/`. Also used as the `resource` path in the RFC 9728 metadata.                                                                 |
+| `earlyRejectExpiredTokens`    | `boolean`                            | `true`            | Reject JWTs with expired `exp` before hitting upstream. Set `false` for opaque tokens.                                                                                            |
+| `cors`                        | `CorsOptions \| false`               | `{ origin: "*" }` | CORS configuration. Set `false` to disable.                                                                                                                                       |
+| `authorizationServerMetadata` | `AuthorizationServerMetadata`        | —                 | If provided, serves at `GET /.well-known/oauth-authorization-server`. Takes precedence over `discoverAuthorizationServer`.                                                        |
+| `discoverAuthorizationServer` | `boolean`                            | `false`           | When `true`, fetches and proxies the AS metadata from `{authorizationServer}/.well-known/oauth-authorization-server`. Result is cached; failures are retried on the next request. |
+| `protectedResourceMetadata`   | `Partial<ProtectedResourceMetadata>` | —                 | Extra fields merged into the protected-resource metadata (`resource` and `authorization_servers` cannot be overridden).                                                           |
+| `onRequest`                   | `(event) => void`                    | —                 | Observability hook called once per request with outcome, status, and duration.                                                                                                    |
+| `onError`                     | `(err, req) => Response?`            | —                 | Error hook. Return a `Response` to override the default JSON-RPC 500.                                                                                                             |
 
 ### CORS options
 
@@ -197,8 +198,8 @@ Request
   │
   ├─ OPTIONS  →  CORS preflight 204
   │
-  ├─ GET /.well-known/oauth-protected-resource  →  RFC 9728 metadata
-  ├─ GET /.well-known/oauth-authorization-server →  RFC 8414 metadata (if configured)
+  ├─ GET /.well-known/oauth-protected-resource  →  RFC 9728 metadata (resource = origin+mcpPath)
+  ├─ GET /.well-known/oauth-authorization-server →  RFC 8414 metadata (static, discovered, or 404)
   │
   ├─ POST /mcp
   │   ├─ No Bearer token?  →  401 + WWW-Authenticate
@@ -217,8 +218,8 @@ bun install
 bun run typecheck    # tsc --noEmit
 bun run lint         # eslint .
 bun run format:check # prettier --check .
-bun test             # 107 tests
-bun run ci           # typecheck + lint + format + test with coverage
+bun test             # 121 tests
+bun run check        # typecheck + lint + format + test with coverage + build
 ```
 
 ## License
