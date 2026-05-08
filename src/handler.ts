@@ -139,9 +139,11 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     // Well-known: protected-resource metadata (RFC 9728)
     // -----------------------------------------------------------------------
     if (pathname === PROTECTED_RESOURCE_PATH && req.method === "GET") {
+      const origin = new URL(req.url).origin;
+      const resourceUrl = `${origin}${mcpPath}`;
       return respond(
         protectedResourceResponse(
-          req.url,
+          resourceUrl,
           authorizationServer,
           config.protectedResourceMetadata,
         ),

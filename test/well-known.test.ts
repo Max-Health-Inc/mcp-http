@@ -10,12 +10,11 @@ import {
 
 const AS = "https://auth.example.com";
 const REQUEST_URL = "https://api.example.com/mcp";
-const ORIGIN = "https://api.example.com";
 
 describe("buildProtectedResourceMetadata", () => {
-  it("derives resource from request origin (not full URL)", () => {
+  it("uses the full resource URL (not just origin) per RFC 9728 §2", () => {
     const doc = buildProtectedResourceMetadata(REQUEST_URL, AS);
-    expect(doc.resource).toBe(ORIGIN);
+    expect(doc.resource).toBe(REQUEST_URL);
   });
 
   it("sets authorization_servers to the configured AS", () => {
@@ -38,13 +37,13 @@ describe("buildProtectedResourceMetadata", () => {
       // by casting through unknown
       ...({ resource: "https://evil.com" } as unknown as object),
     } as Parameters<typeof buildProtectedResourceMetadata>[2]);
-    expect(doc.resource).toBe(ORIGIN);
+    expect(doc.resource).toBe(REQUEST_URL);
     expect(doc.authorization_servers).toEqual([AS]);
   });
 
   it("handles origin with non-standard port", () => {
     const doc = buildProtectedResourceMetadata("https://api.example.com:8443/mcp", AS);
-    expect(doc.resource).toBe("https://api.example.com:8443");
+    expect(doc.resource).toBe("https://api.example.com:8443/mcp");
   });
 });
 
@@ -72,7 +71,7 @@ describe("protectedResourceResponse", () => {
       resource: string;
       authorization_servers: string[];
     };
-    expect(body.resource).toBe(ORIGIN);
+    expect(body.resource).toBe(REQUEST_URL);
     expect(body.authorization_servers).toEqual([AS]);
   });
 

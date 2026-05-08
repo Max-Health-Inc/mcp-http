@@ -6,23 +6,21 @@ const WELL_KNOWN_AS = "/.well-known/oauth-authorization-server";
 /**
  * Build the RFC 9728 Protected Resource Metadata document.
  *
- * `resource` is always the request **origin** (scheme + host + optional port),
- * not the full URL path. `authorization_servers` always contains exactly the
+ * `resource` is the full URL of the protected resource (origin + path),
+ * per RFC 9728 §2. `authorization_servers` always contains exactly the
  * configured AS base URL.
  *
  * Consumer-supplied extra fields are merged in, but `resource` and
  * `authorization_servers` cannot be overridden.
  */
 export function buildProtectedResourceMetadata(
-  requestUrl: string,
+  resourceUrl: string,
   authorizationServer: string,
   extra?: Partial<Omit<ProtectedResourceMetadata, "resource" | "authorization_servers">>,
 ): ProtectedResourceMetadata {
-  const origin = new URL(requestUrl).origin;
-
   return {
     ...(extra ?? {}),
-    resource: origin,
+    resource: resourceUrl,
     authorization_servers: [authorizationServer],
   };
 }

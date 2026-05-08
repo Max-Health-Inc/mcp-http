@@ -49,7 +49,7 @@ describe("mcpHono integration", () => {
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { resource: string };
-    expect(body.resource).toBe(BASE);
+    expect(body.resource).toBe(`${BASE}/mcp`);
   });
 
   it("does NOT serve /.well-known/oauth-authorization-server (not configured)", async () => {

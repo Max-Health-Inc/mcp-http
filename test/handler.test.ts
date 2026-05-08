@@ -88,7 +88,8 @@ describe("GET /.well-known/oauth-protected-resource", () => {
       resource: string;
       authorization_servers: string[];
     };
-    expect(body.resource).toBe(BASE);
+    // RFC 9728 §2: resource = full URL of the protected resource (origin + mcpPath)
+    expect(body.resource).toBe(`${BASE}/mcp`);
     expect(body.authorization_servers).toContain(AS);
   });
 
