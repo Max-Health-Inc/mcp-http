@@ -103,21 +103,23 @@ export function createMcpHttpHandler(config: McpHttpHandlerConfig): McpHandler {
 /**
  * Convenience wrapper so consumers can do:
  * ```ts
- * export default { fetch: createMcpHttpHandler(config) };
+ * export default { fetch: createWorkerFetch<Env>({ ... }) };
  * ```
- * The handler signature is compatible with the Cloudflare Workers `fetch` export.
+ * The generic `Env` parameter types the `env` argument in the returned fetch
+ * function, making it compatible with typed Cloudflare Workers `fetch` exports.
  */
-export function createWorkerFetch(
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+export function createWorkerFetch<Env = unknown>(
   config: McpHttpHandlerConfig,
 ): (
   req: Request,
-  env?: unknown,
+  env?: Env,
   ctx?: { waitUntil?: (p: Promise<unknown>) => void },
 ) => Promise<Response> {
   const handler = createMcpHttpHandler(config);
   return (
     req: Request,
-    env?: unknown,
+    env?: Env,
     ctx?: { waitUntil?: (p: Promise<unknown>) => void },
   ): Promise<Response> => {
     const platformCtx: Omit<PlatformCtx, "request"> = { env };
