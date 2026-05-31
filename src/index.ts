@@ -80,7 +80,9 @@ export type { McpHandler };
  *
  * @throws {Error} If `authorizationServer` is not a valid URL.
  */
-export function createMcpHttpHandler(config: McpHttpHandlerConfig): McpHandler {
+export function createMcpHttpHandler<Env = unknown>(
+  config: McpHttpHandlerConfig<Env>,
+): McpHandler {
   // Validate at construction time — fail loud at the boundary.
   if (config.authorizationServer !== undefined) {
     try {
@@ -106,11 +108,11 @@ export function createMcpHttpHandler(config: McpHttpHandlerConfig): McpHandler {
  * export default { fetch: createWorkerFetch<Env>({ ... }) };
  * ```
  * The generic `Env` parameter types the `env` argument in the returned fetch
- * function, making it compatible with typed Cloudflare Workers `fetch` exports.
+ * function and flows through to `createServer`'s `ctx.env`, making it
+ * compatible with typed Cloudflare Workers `fetch` exports.
  */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 export function createWorkerFetch<Env = unknown>(
-  config: McpHttpHandlerConfig,
+  config: McpHttpHandlerConfig<Env>,
 ): (
   req: Request,
   env?: Env,

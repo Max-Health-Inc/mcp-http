@@ -43,11 +43,11 @@ export interface AuthorizationServerMetadata {
 // Platform context passed into createServer
 // ---------------------------------------------------------------------------
 
-export interface PlatformCtx {
+export interface PlatformCtx<Env = unknown> {
   /** The original inbound request. */
   request: Request;
   /** Platform-specific environment bindings (Workers/Pages `env`, etc.). */
-  env?: unknown;
+  env?: Env;
   /** Cloudflare / edge `waitUntil` for background work. */
   waitUntil?: (promise: Promise<unknown>) => void;
 }
@@ -104,7 +104,7 @@ export interface McpRequestEvent {
 // Handler configuration
 // ---------------------------------------------------------------------------
 
-export interface McpHttpHandlerConfig {
+export interface McpHttpHandlerConfig<Env = unknown> {
   /**
    * Base URL of the external OAuth Authorization Server (the issuer).
    * Used to populate `authorization_servers` in the protected-resource
@@ -129,7 +129,7 @@ export interface McpHttpHandlerConfig {
    */
   createServer: (
     bearerToken: string | null,
-    ctx: PlatformCtx,
+    ctx: PlatformCtx<Env>,
   ) => McpServer | Promise<McpServer>;
 
   /**
