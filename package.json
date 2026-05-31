@@ -1,6 +1,6 @@
 {
   "name": "@maxhealth.tech/mcp-http",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "description": "Framework-agnostic MCP HTTP transport with RFC 9728 OAuth plumbing for edge runtimes",
   "exports": {
