@@ -6,7 +6,7 @@ import type {
 } from "./types.js";
 import { applyCors, handlePreflight } from "./cors.js";
 import { extractBearer, isJwtExpired } from "./jwt.js";
-import { handleMcpPost } from "./transport.js";
+import { handleMcpPost, handleMcpPostStateful } from "./transport.js";
 import type { HandleMcpPostOptions } from "./transport.js";
 import {
   PROTECTED_RESOURCE_PATH,
@@ -15,6 +15,7 @@ import {
   authorizationServerResponse,
 } from "./well-known.js";
 import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
+import { SessionStore } from "./session-store.js";
 
 const DEFAULT_MCP_PATH = "/mcp";
 
@@ -73,12 +74,16 @@ export type McpHandler = (
 export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
   const mcpPath = config.mcpPath ?? DEFAULT_MCP_PATH;
   const earlyReject = config.earlyRejectExpiredTokens !== false;
+  const stateful = config.stateful === true;
   // Normalize: strip trailing slash so URLs like "https://auth.example.com/" don't
   // produce double slashes in discovery URLs or leak into authorization_servers.
   // null when authorizationServer is not configured (public endpoint).
   const authorizationServer = config.authorizationServer
     ? config.authorizationServer.replace(/\/+$/, "")
     : null;
+
+  // Session store for stateful mode (shared across all requests)
+  const sessionStore = stateful ? new SessionStore({ ttlMs: config.sessionTtlMs }) : null;
 
   // ------------------------------------------------------------------
   // Authorization Server metadata — static or auto-discovered
@@ -253,6 +258,20 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
 
       const ctx: PlatformCtx = { request: req, ...platformCtx };
 
+      // ── Stateful mode: use session store for persistent transports ──
+      if (stateful && sessionStore) {
+        const statefulOpts: Parameters<typeof handleMcpPostStateful>[0] = {
+          createServer: () => config.createServer(token, ctx),
+          req,
+          sessionStore,
+        };
+        if (config.onError !== undefined) {
+          statefulOpts.onError = config.onError;
+        }
+        return respond(handleMcpPostStateful(statefulOpts), "ok");
+      }
+
+      // ── Stateless mode (default): one-shot transport per request ──
       let server;
       try {
         server = await config.createServer(token, ctx);
