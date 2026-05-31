@@ -1,6 +1,7 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
+import type { SessionStore } from "./session-store.js";
 
 /**
  * MCP `Accept` header values for the Streamable HTTP transport.
@@ -9,6 +10,9 @@ import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
  * sees both and can pick the right response format.
  */
 const MCP_ACCEPT = "application/json, text/event-stream";
+
+/** Header name the SDK uses to track sessions. */
+const SESSION_ID_HEADER = "mcp-session-id";
 
 /**
  * Ensure the `Accept` header contains both content types required by the MCP
@@ -45,7 +49,7 @@ export interface HandleMcpPostOptions {
 }
 
 /**
- * Drive the full MCP transport lifecycle for a single POST request:
+ * Drive the full MCP transport lifecycle for a single POST request (STATELESS).
  *
  * 1. Instantiate a stateless `WebStandardStreamableHTTPServerTransport`
  * 2. Connect the `McpServer` to it
@@ -56,6 +60,9 @@ export interface HandleMcpPostOptions {
  * Returns the `Response` produced by the transport. On unhandled errors
  * the `onError` hook is called; if it returns a `Response` that is used,
  * otherwise a JSON-RPC 500 body is returned.
+ *
+ * NOTE: This mode does NOT support server-initiated RPC like `createMessage`.
+ * Use `handleMcpPostStateful` for sampling/createMessage support.
  */
 export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Response> {
   const { server, req, onError } = options;
@@ -98,6 +105,94 @@ export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Resp
       }
     } else {
       console.error("[mcp-http] Unhandled transport error", err);
+    }
+
+    return toJsonRpcErrorResponse(
+      500,
+      JSON_RPC_ERROR_CODES.INTERNAL_ERROR,
+      "Internal server error",
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stateful (session-based) transport — supports server→client RPC
+// ---------------------------------------------------------------------------
+
+export interface HandleMcpStatefulOptions {
+  /** Factory to create a new McpServer instance for a new session. */
+  createServer: () => McpServer | Promise<McpServer>;
+  /** The inbound request. */
+  req: Request;
+  /** Session store (shared across requests). */
+  sessionStore: SessionStore;
+  /** Error handler. */
+  onError?: (
+    err: unknown,
+    req: Request,
+  ) => Response | undefined | Promise<Response | undefined>;
+}
+
+/**
+ * Handle an MCP POST request with session support.
+ *
+ * - If the request carries a `Mcp-Session-Id` header, route to the existing
+ *   session's transport.
+ * - If this is an `initialize` request (no session ID), create a new session
+ *   with a fresh transport + server, register it in the store.
+ *
+ * This enables server-initiated RPC (sampling/createMessage) because the
+ * transport persists across requests.
+ */
+export async function handleMcpPostStateful(
+  options: HandleMcpStatefulOptions,
+): Promise<Response> {
+  const { createServer, req, sessionStore, onError } = options;
+  const sessionId = req.headers.get(SESSION_ID_HEADER);
+
+  try {
+    // ── Existing session: route to stored transport ──────────────────────
+    if (sessionId) {
+      const entry = sessionStore.get(sessionId);
+      if (!entry) {
+        // Session expired or unknown — client must re-initialize
+        return new Response(JSON.stringify({ error: "Session not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const normalizedReq = withNormalizedAccept(req);
+      return await entry.transport.handleRequest(normalizedReq);
+    }
+
+    // ── New session: create transport + server ───────────────────────────
+    const server = await createServer();
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: () => crypto.randomUUID(),
+      onsessioninitialized: (id: string) => {
+        sessionStore.set(id, {
+          transport,
+          server,
+          createdAt: Date.now(),
+          lastAccessedAt: Date.now(),
+        });
+      },
+    });
+
+    await server.connect(transport);
+    const normalizedReq = withNormalizedAccept(req);
+    return await transport.handleRequest(normalizedReq);
+  } catch (err: unknown) {
+    if (onError) {
+      try {
+        const override = await onError(err, req);
+        if (override instanceof Response) return override;
+      } catch {
+        // Swallow hook errors
+      }
+    } else {
+      console.error("[mcp-http] Unhandled stateful transport error", err);
     }
 
     return toJsonRpcErrorResponse(

@@ -133,6 +133,25 @@ export interface McpHttpHandlerConfig {
   ) => McpServer | Promise<McpServer>;
 
   /**
+   * Enable stateful session management for server-initiated RPC
+   * (e.g. sampling/createMessage). When enabled, transport instances
+   * persist across requests using an in-memory session store.
+   *
+   * **Important:** Stateful mode is required for `server.server.createMessage()`
+   * to work, as it needs a persistent SSE connection to send requests back
+   * to the client.
+   *
+   * Default: `false` (stateless, backward-compatible).
+   */
+  stateful?: boolean;
+
+  /**
+   * Session TTL in milliseconds. Only used when `stateful: true`.
+   * Default: 5 minutes (300_000).
+   */
+  sessionTtlMs?: number;
+
+  /**
    * When provided, serves this document verbatim at
    * `GET /.well-known/oauth-authorization-server`.
    *
