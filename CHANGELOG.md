@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-07-31
+
 ### Fixed
 
 - **CORS** — `MCP-Protocol-Version` is now in `Access-Control-Allow-Headers`. That header has been required on every MCP HTTP request since protocol version 2025-06-18 and is not CORS-safelisted, so every browser-hosted MCP client previously failed preflight and never reached the endpoint. ([#7](https://github.com/Max-Health-Inc/mcp-http/issues/7))
