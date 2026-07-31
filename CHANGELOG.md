@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking (dependency)** — the peer dependency moves from the retired monolithic `@modelcontextprotocol/sdk` (`>=1.29.0`) to `@modelcontextprotocol/server` (`^2.0.0`). The v2 SDK went stable on 2026-07-27. **No export was removed, renamed, or changed shape**, so the only consumer change is the dependency swap and updating `McpServer` imports to `@modelcontextprotocol/server`; `McpServer` and `WebStandardStreamableHTTPServerTransport` are API-compatible across the two majors. See "Migrating from 0.2.x" in the README. Consumers who cannot move yet should stay on the 0.2.x line.
 - The package is repositioned as the OAuth, CORS and observability layer over the official SDK rather than an MCP transport implementation, and the description reflects that.
 - `protectedResourcePath()` now delegates to `getOAuthProtectedResourceMetadataUrl` from the SDK, so the route can never drift from the SDK's reading of RFC 9728 §3.1. Verified to produce identical output for `/mcp`, nested, root, empty and trailing-slash mount points.
+- **CI** — `release.yml` now merges the release commit back into `develop` after publishing, so the promoted changelog and the bumped version reach `develop` immediately instead of diverging until someone notices. The sync is best-effort: a conflict writes a warning to the run summary rather than failing an already-completed release. Without this the two branches differ structurally after every release, which is what mis-filed the 0.2.1 entries.
+- **CI** — Actions updated to current majors: `actions/setup-node` v4 → v7 (this was the Node 20 deprecation warning on every publish run) and `softprops/action-gh-release` v2 → v3 (a Node 20 → 24 runtime move, no API change). `actions/checkout` is already on v7 and `oven-sh/setup-bun@v2` is current. The Node used for npm publishing moves from 22 to 24, the current LTS, matching the node24 runtime the actions themselves now use.
 
 ### Deprecated
 
@@ -26,19 +28,22 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 
 ### Fixed
 
+- **Changelog accuracy** — the `## [0.2.1]` section wrongly claimed the RFC 9728 path-aware route, the `protectedResourcePath` helper, the Dependabot config and the CI action bumps. None of those are in the published `v0.2.1`, which contains only the changelog link-reference fix; they have been moved back under Unreleased. Cause: promoting `[Unreleased]` on `main` while `develop` had already accumulated new entries leaves git resolving two files whose only structural difference is where the version heading sits, and a line-based merge happily files the newer entries under the older heading. It also emptied `[Unreleased]` on `main`, which is why the follow-up merge skipped its release instead of publishing 0.2.2.
+
 - **Spec** — Protected-resource metadata is now served at the [RFC 9728 §3.1](https://datatracker.ietf.org/doc/html/rfc9728#section-3.1) path-aware route. The spec forms the metadata URL by inserting the well-known segment _between the host and the resource path_, so an endpoint mounted at `/mcp` publishes at `/.well-known/oauth-protected-resource/mcp`. Up to and including 0.2.1 only the bare `/.well-known/oauth-protected-resource` was served, and the `WWW-Authenticate` challenge pointed there, which is off-spec for any non-root mount point. The bare path is still served as a compatibility alias, so this is not a breaking change; the `WWW-Authenticate` `resource_metadata` pointer now advertises the path-aware URL. Found by diffing our behaviour against `@modelcontextprotocol/server@2.0.0`, which implements the rule correctly.
-- **Release tooling** — `scripts/changelog-release.ts` now maintains the link-reference block when it stamps a version: `[Unreleased]` is repointed at the new tag and a `[<version>]` compare link is inserted beneath it. The 0.2.0 release exposed this gap, shipping with `[Unreleased]` still comparing from `v0.1.6` and no `[0.2.0]` link at all. The repository URL and previous tag are derived from the existing `[Unreleased]` line rather than hardcoded, so the script stays portable to the other repos using it. Changelogs that keep no link block are left untouched.
-- Backfilled the `[0.2.0]` link reference that the 0.2.0 release itself could not add.
-- Corrected a line in the 0.2.0 entry that still claimed merging to `main` publishes nothing, contradicting the release-on-merge entry directly above it.
 
 ### Added
 
 - `protectedResourcePath(mcpPath)` applies the RFC 9728 §3.1 path-insertion rule, for consumers that need to compute the metadata route themselves.
 - **CI** — `.github/dependabot.yml`, so CI actions and npm dependencies stay current without a manual sweep. Mirrors the org config in `Max-Health-Inc/armband` and `sleeptracker`, extended with the npm ecosystem and grouped so each ecosystem opens one PR a week rather than one per dependency. It targets `develop`, not `main`: merging to `main` publishes, so a routine bump landing there would cut a release. TypeScript major updates are ignored for now because `typescript-eslint` still caps `typescript` below `6.1.0`; a grouped PR would otherwise fail every week and block the other updates.
 
-### Changed
+## [0.2.1] — 2026-07-31
 
-- **CI** — Actions updated to current majors: `actions/setup-node` v4 → v7 (this was the Node 20 deprecation warning on every publish run) and `softprops/action-gh-release` v2 → v3 (a Node 20 → 24 runtime move, no API change). `actions/checkout` is already on v7 and `oven-sh/setup-bun@v2` is current. The Node used for npm publishing moves from 22 to 24, the current LTS, matching the node24 runtime the actions themselves now use.
+### Fixed
+
+- **Release tooling** — `scripts/changelog-release.ts` now maintains the link-reference block when it stamps a version: `[Unreleased]` is repointed at the new tag and a `[<version>]` compare link is inserted beneath it. The 0.2.0 release exposed this gap, shipping with `[Unreleased]` still comparing from `v0.1.6` and no `[0.2.0]` link at all. The repository URL and previous tag are derived from the existing `[Unreleased]` line rather than hardcoded, so the script stays portable to the other repos using it. Changelogs that keep no link block are left untouched.
+- Backfilled the `[0.2.0]` link reference that the 0.2.0 release itself could not add.
+- Corrected a line in the 0.2.0 entry that still claimed merging to `main` publishes nothing, contradicting the release-on-merge entry directly above it.
 
 ## [0.2.0] — 2026-07-31
 
@@ -161,7 +166,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.4...v0.1.5
