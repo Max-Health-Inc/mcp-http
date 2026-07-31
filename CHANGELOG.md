@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-08-01
+
+### Fixed
+
+- **Spec** — Protected-resource metadata moved to the [RFC 9728 §3.1](https://datatracker.ietf.org/doc/html/rfc9728#section-3.1) path-aware route (`/.well-known/oauth-protected-resource/mcp`), with the bare path kept as an alias. Found by diffing against `@modelcontextprotocol/server@2.0.0`, which implements the rule correctly. The `WWW-Authenticate` `resource_metadata` pointer now advertises the path-aware URL.
+
+### Added
+
+- `protectedResourcePath(mcpPath)` applies the RFC 9728 §3.1 path-insertion rule, for consumers that need to compute the metadata route themselves.
+
+### Note
+
+This is a backport onto the 0.2.x line for consumers who cannot yet move to `@modelcontextprotocol/server` v2. 0.3.0 and later require that peer; this release stays on `@modelcontextprotocol/sdk`. It is published under the `legacy` npm dist-tag so it does not displace `latest`.
+
 ## [0.2.1] — 2026-07-31
 
 ### Fixed
@@ -136,7 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.5...v0.1.6

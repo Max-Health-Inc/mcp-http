@@ -766,3 +766,55 @@ describe("public endpoint — authorizationServer omitted", () => {
     ).toThrow("[mcp-http]");
   });
 });
+
+// ---------------------------------------------------------------------------
+// RFC 9728 §3.1 — path-aware protected-resource metadata route
+// ---------------------------------------------------------------------------
+
+describe("protected-resource metadata is served path-aware", () => {
+  const handler = createMcpHttpHandler(makeConfig());
+
+  it("serves the document at the path-aware route", async () => {
+    const res = await handler(
+      makeReq("/.well-known/oauth-protected-resource/mcp", "GET"),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ resource: `${BASE}/mcp` });
+  });
+
+  it("still serves the bare path as a compatibility alias", async () => {
+    const res = await handler(makeReq("/.well-known/oauth-protected-resource", "GET"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ resource: `${BASE}/mcp` });
+  });
+
+  it("points WWW-Authenticate at the path-aware URL", async () => {
+    const res = await handler(makeReq("/mcp", "POST"));
+    expect(res.status).toBe(401);
+    expect(res.headers.get("WWW-Authenticate")).toBe(
+      `Bearer resource_metadata="${BASE}/.well-known/oauth-protected-resource/mcp"`,
+    );
+  });
+
+  it("derives the route from a custom mcpPath", async () => {
+    const custom = createMcpHttpHandler(makeConfig({ mcpPath: "/api/mcp" }));
+
+    const doc = await custom(
+      makeReq("/.well-known/oauth-protected-resource/api/mcp", "GET"),
+    );
+    expect(doc.status).toBe(200);
+    expect(await doc.json()).toMatchObject({ resource: `${BASE}/api/mcp` });
+
+    const gated = await custom(makeReq("/api/mcp", "POST"));
+    expect(gated.headers.get("WWW-Authenticate")).toContain(
+      "/.well-known/oauth-protected-resource/api/mcp",
+    );
+  });
+
+  it("advertises GET on the path-aware route in preflight", async () => {
+    const res = await handler(
+      makeReq("/.well-known/oauth-protected-resource/mcp", "OPTIONS"),
+    );
+    expect(res.headers.get("Access-Control-Allow-Methods")).toBe("GET, OPTIONS");
+  });
+});
