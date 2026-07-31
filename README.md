@@ -1,6 +1,6 @@
 # @maxhealth.tech/mcp-http
 
-Framework-agnostic [MCP](https://modelcontextprotocol.io/) HTTP transport with [RFC 9728](https://datatracker.ietf.org/doc/html/rfc9728) OAuth resource-server plumbing.
+OAuth, CORS and observability layer for [MCP](https://modelcontextprotocol.io/) HTTP servers, built on the official [`@modelcontextprotocol/server`](https://www.npmjs.com/package/@modelcontextprotocol/server) SDK.
 
 Built on the **Web Fetch API** — runs on Cloudflare Workers, Pages Functions, Deno Deploy, Bun, Node 18+, and any Hono deployment.
 
@@ -21,17 +21,21 @@ Built on the **Web Fetch API** — runs on Cloudflare Workers, Pages Functions, 
 
 ```bash
 # bun
-bun add @maxhealth.tech/mcp-http @modelcontextprotocol/sdk
+bun add @maxhealth.tech/mcp-http @modelcontextprotocol/server
 
 # npm
-npm install @maxhealth.tech/mcp-http @modelcontextprotocol/sdk
+npm install @maxhealth.tech/mcp-http @modelcontextprotocol/server
 
 # pnpm
-pnpm add @maxhealth.tech/mcp-http @modelcontextprotocol/sdk
+pnpm add @maxhealth.tech/mcp-http @modelcontextprotocol/server
 ```
 
-`@modelcontextprotocol/sdk` is a **peer dependency** (≥ 1.29.0).
+`@modelcontextprotocol/server` is a **peer dependency** (^2.0.0).
 `hono` is an **optional peer dependency** (≥ 4.12.0) — only needed for the `/hono` adapter.
+
+> **Upgrading from 0.2.x?** The peer moved from the retired monolithic
+> `@modelcontextprotocol/sdk` to `@modelcontextprotocol/server`. Every export still
+> works — see [Migrating from 0.2.x](#migrating-from-02x).
 
 ## Quick start
 
@@ -39,7 +43,7 @@ pnpm add @maxhealth.tech/mcp-http @modelcontextprotocol/sdk
 
 ```ts
 import { createWorkerFetch, forwardBearer } from "@maxhealth.tech/mcp-http";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 
 export default {
   fetch: createWorkerFetch({
@@ -238,6 +242,44 @@ protectedResourcePath("/"); // "/.well-known/oauth-protected-resource"
 A root-mounted resource has no path component to insert, so it uses the bare well-known path.
 
 The bare path is **also** served, for every mount point, as a compatibility alias. Versions up to and including 0.2.1 served only the bare path, so clients that discovered the endpoint against an older release keep working. Prefer the path-aware route in new code.
+
+## Migrating from 0.2.x
+
+0.3.0 re-layers this package on the official v2 SDK. **No export was removed or changed**, so most upgrades are a dependency swap:
+
+```diff
+- npm install @modelcontextprotocol/sdk
++ npm install @modelcontextprotocol/server
+```
+
+```diff
+- import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
++ import { McpServer } from "@modelcontextprotocol/server";
+```
+
+The monolithic `@modelcontextprotocol/sdk` was retired in favour of focused packages; `@modelcontextprotocol/server` went stable at 2.0.0 on 2026-07-27. `McpServer` and `WebStandardStreamableHTTPServerTransport` are API-compatible across the two, which is why nothing else has to change.
+
+### What the SDK now does better
+
+Several things this package used to own are available directly from the SDK, usually with more capability. Where that is true the wrapper here is marked `@deprecated` and will be removed in 0.4.0. Your editor will point you at the replacement.
+
+| Deprecated here                         | Use instead                           | Why                                                                                                         |
+| --------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `handleMcpPost`                         | `createMcpHandler`                    | Also serves the 2026-07-28 revision, its `resultType` discriminator, and `-32020 HeaderMismatch` validation |
+| `handleMcpPostStateful`, `SessionStore` | `createMcpHandler`                    | Sessions are removed in 2026-07-28; this path is 2025-era only                                              |
+| `buildProtectedResourceMetadata`        | `buildOAuthProtectedResourceMetadata` | Takes your real RFC 8414 document rather than a bare issuer URL                                             |
+
+**One incompatibility worth knowing before you migrate off `handleMcpPost`.** `createMcpHandler`'s `onerror` option is reporting-only and, per the SDK's documentation, "never alters the response". `onError` here may return a `Response` to override the reply. If you depend on that, keep using `handleMcpPost` for now — that same incompatibility is why this package still drives the transport itself instead of delegating.
+
+### What this package still owns
+
+The SDK has no equivalent for these, so they are not going anywhere:
+
+- **CORS** — the SDK ships none at all. Route-aware preflight, `Mcp-Param-*` prefix admission, and the shared route table live here.
+- **`forwardBearer(token)`** — on-behalf-of upstream `fetch`.
+- **JWT `exp` pre-check** — cheap local rejection with clock-skew buffer, before any verifier round-trip.
+- **`onRequest` / `onError`** hooks.
+- **One-call wiring** — `createMcpHttpHandler` and the Hono / Pages adapters.
 
 ## Development
 

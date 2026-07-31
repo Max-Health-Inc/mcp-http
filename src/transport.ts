@@ -1,5 +1,7 @@
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  WebStandardStreamableHTTPServerTransport,
+  type McpServer,
+} from "@modelcontextprotocol/server";
 import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
 import type { SessionStore } from "./session-store.js";
 
@@ -63,6 +65,26 @@ export interface HandleMcpPostOptions {
  *
  * NOTE: This mode does NOT support server-initiated RPC like `createMessage`.
  * Use `handleMcpPostStateful` for sampling/createMessage support.
+ */
+/**
+ * **Not deprecated, but consider `createMcpHandler` instead.**
+ *
+ * `createMcpHandler` from `@modelcontextprotocol/server` additionally serves the
+ * 2026-07-28 protocol revision and its `-32020 HeaderMismatch` validation, so
+ * prefer it for new code that does not need the hook below.
+ *
+ * It is **not** a drop-in replacement, and this function is deliberately kept:
+ *
+ * - `createMcpHandler` cannot reproduce the `onError` contract. Its `onerror`
+ *   option is reporting-only and, per the SDK's own documentation, "never alters
+ *   the response" — whereas `onError` here may return a `Response` to override
+ *   the reply.
+ * - `createMcpHttpHandler`, this package's primary entry point, is built on this
+ *   function. Removing it would mean removing `onError` from the main API.
+ *
+ * That is why the transport is driven directly here rather than delegated.
+ *
+ * @see {@link https://www.npmjs.com/package/@modelcontextprotocol/server | @modelcontextprotocol/server}
  */
 export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Response> {
   const { server, req, onError } = options;
@@ -143,6 +165,14 @@ export interface HandleMcpStatefulOptions {
  *
  * This enables server-initiated RPC (sampling/createMessage) because the
  * transport persists across requests.
+ */
+/**
+ * @deprecated Session-based serving is a 2025-era mechanism. The 2026-07-28
+ * revision removes `Mcp-Session-Id` and replaces server-initiated sampling with
+ * in-result input requests, so this path has no long-term future. Prefer
+ * `createMcpHandler` from `@modelcontextprotocol/server`. Scheduled for removal
+ * in 0.4.0.
+ * @see {@link https://www.npmjs.com/package/@modelcontextprotocol/server | @modelcontextprotocol/server}
  */
 export async function handleMcpPostStateful(
   options: HandleMcpStatefulOptions,

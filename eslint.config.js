@@ -75,6 +75,31 @@ export default tseslint.config(
     ignores: ["dist/**", "node_modules/**", "eslint.config.js"],
   },
 
+  // Narrow, deliberate silencing. These files must keep exercising this
+  // package's own deprecated surface while it still ships: `buildHandler` routes
+  // to the deprecated stateful path when `stateful: true`, `protectedResourceResponse`
+  // builds via the deprecated metadata builder, `index.ts` re-exports both, and
+  // their tests must keep covering them until 0.4.0 removes them.
+  //
+  // The deprecation is a signal to CONSUMERS, delivered through JSDoc to their
+  // editors. Anything NOT genuinely slated for removal should be un-deprecated
+  // rather than added here — if this list grows, suspect the markers, not the rule.
+  {
+    files: [
+      "src/handler.ts",
+      "src/index.ts",
+      // hosts the deprecated `handleMcpPostStateful`, which takes a `SessionStore`
+      "src/transport.ts",
+      "src/well-known.ts",
+      "test/session-store.test.ts",
+      "test/stateful.test.ts",
+      "test/well-known.test.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+
   // Relaxed rules for test files: bun:test's expect() returns loosely typed
   // matchers that trigger unsafe-* rules. Tests are not production code.
   {

@@ -1,5 +1,7 @@
-import type { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type {
+  WebStandardStreamableHTTPServerTransport,
+  McpServer,
+} from "@modelcontextprotocol/server";
 
 /**
  * Session entry holding a live transport + server pair.
@@ -36,6 +38,12 @@ const DEFAULT_SWEEP_INTERVAL_MS = 60 * 1000; // 1 minute
  * Maintains transport instances across HTTP requests so that
  * server-initiated RPC (e.g. `createMessage` for sampling) can
  * flow through the persistent SSE connection.
+ */
+/**
+ * @deprecated Exists only to support the deprecated `handleMcpPostStateful`
+ * path: the 2026-07-28 revision removes sessions entirely. Scheduled for
+ * removal in 0.4.0.
+ * @see {@link https://www.npmjs.com/package/@modelcontextprotocol/server | @modelcontextprotocol/server}
  */
 export class SessionStore {
   private readonly sessions = new Map<string, SessionEntry>();
