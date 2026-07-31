@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `handlePreflight()` accepts an optional third `PreflightRouteOptions` argument (`{ mcpPath }`) so route-accurate methods can be advertised when the endpoint is not mounted at the default `/mcp`. Existing two-argument calls keep working.
 - `DEFAULT_MCP_PATH`, `allowedMethodsFor()` and `allowMethodsValue()` are exported for consumers composing their own routing.
+- **Release tooling** — `scripts/changelog-release.ts`, a release-time changelog gate ported from the org-canonical implementation in `Max-Health-Inc/prefab`. It fails the release when the version about to ship has nothing documented, and otherwise promotes `[Unreleased]` to `## [<version>] — <date>`. Wired into `release.yml` before the version bump, and `CHANGELOG.md` is now committed alongside `package.json` in the release commit. Previously a release left the changelog saying "Unreleased" indefinitely.
+- **Release tooling** — `release.yml` now honours an intentional version bump: if `package.json` is strictly ahead of the npm latest, that version ships instead of a forced patch bump. Also ported from `prefab`. Previously the workflow always patch-bumped and explicitly ignored `package.json`, so a minor or major release was impossible without editing the workflow.
+- **CI** — `auto-pr.yml` keeps a standing `develop → main` promotion PR open. It calls the org reusable workflow at `Max-Health-Inc/.github/.github/workflows/create-pr.yml` rather than carrying a copy. Merging that PR still publishes nothing; `release.yml` remains `workflow_dispatch`-only.
 
 ### Changed
 

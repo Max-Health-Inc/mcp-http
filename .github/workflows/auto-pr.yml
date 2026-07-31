@@ -1,0 +1,29 @@
+name: Auto PR (develop → main)
+
+# After a push to `develop`, keep a standing "promote develop → main" PR open and up to
+# date, so shipping is a one-click merge instead of a hand-written PR.
+#
+# This CALLS the org-level reusable workflow rather than carrying a copy of it.
+# See Max-Health-Inc/.github/.github/workflows/create-pr.yml.
+#
+# Note: unlike the deploy-on-merge repos in the org, merging here publishes nothing.
+# release.yml is workflow_dispatch-only and is what tags and triggers publish.yml.
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+  # The caller's permissions are the ceiling for a reusable workflow, so the PR write has
+  # to be granted here even though the called workflow declares it too.
+  pull-requests: write
+
+jobs:
+  promote:
+    uses: Max-Health-Inc/.github/.github/workflows/create-pr.yml@main
+    with:
+      head: develop
+      base: main
+      title: "🚀 Promote develop → main (@maxhealth.tech/mcp-http)"
+      note: "Merging publishes nothing. Run the Release & Publish workflow to cut a version."
+    secrets: inherit
