@@ -44,6 +44,7 @@ export {
   authorizationServerResponse,
   PROTECTED_RESOURCE_PATH,
   AUTHORIZATION_SERVER_PATH,
+  protectedResourcePath,
 } from "./well-known.js";
 export { handleMcpPost, handleMcpPostStateful } from "./transport.js";
 export type { HandleMcpPostOptions, HandleMcpStatefulOptions } from "./transport.js";

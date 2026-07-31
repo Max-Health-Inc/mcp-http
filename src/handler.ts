@@ -10,6 +10,7 @@ import { handleMcpPost, handleMcpPostStateful } from "./transport.js";
 import type { HandleMcpPostOptions } from "./transport.js";
 import {
   PROTECTED_RESOURCE_PATH,
+  protectedResourcePath,
   AUTHORIZATION_SERVER_PATH,
   protectedResourceResponse,
   authorizationServerResponse,
@@ -50,9 +51,9 @@ function withCors(
  * Mitigate by running behind a reverse proxy that enforces the `Host` header,
  * or by configuring a `publicOrigin` at the edge/platform level.
  */
-function unauthorizedResponse(req: Request): Response {
+function unauthorizedResponse(req: Request, prmPath: string): Response {
   const origin = new URL(req.url).origin;
-  const resourceMetadataUrl = `${origin}${PROTECTED_RESOURCE_PATH}`;
+  const resourceMetadataUrl = `${origin}${prmPath}`;
 
   return new Response(null, {
     status: 401,
@@ -78,6 +79,8 @@ export function buildHandler<Env = unknown>(
   config: McpHttpHandlerConfig<Env>,
 ): McpHandler {
   const mcpPath = config.mcpPath ?? DEFAULT_MCP_PATH;
+  // RFC 9728 §3.1 path-aware metadata route derived from the mount point.
+  const prmPath = protectedResourcePath(mcpPath);
   const earlyReject = config.earlyRejectExpiredTokens !== false;
   const stateful = config.stateful === true;
   // Normalize: strip trailing slash so URLs like "https://auth.example.com/" don't
@@ -188,7 +191,12 @@ export function buildHandler<Env = unknown>(
     // -----------------------------------------------------------------------
     // Well-known: protected-resource metadata (RFC 9728)
     // -----------------------------------------------------------------------
-    if (pathname === PROTECTED_RESOURCE_PATH && req.method === "GET") {
+    // Served at the RFC 9728 §3.1 path-aware route, and also at the bare
+    // well-known path as a compatibility alias for clients that probe it.
+    if (
+      (pathname === prmPath || pathname === PROTECTED_RESOURCE_PATH) &&
+      req.method === "GET"
+    ) {
       if (authorizationServer === null) {
         return respond(new Response(null, { status: 404 }), "not-found");
       }
@@ -262,11 +270,11 @@ export function buildHandler<Env = unknown>(
         token = extractBearer(req.headers.get("Authorization"));
 
         if (token === null) {
-          return respond(unauthorizedResponse(req), "unauthorized");
+          return respond(unauthorizedResponse(req, prmPath), "unauthorized");
         }
 
         if (earlyReject && isJwtExpired(token)) {
-          return respond(unauthorizedResponse(req), "token-expired");
+          return respond(unauthorizedResponse(req, prmPath), "token-expired");
         }
       }
 
