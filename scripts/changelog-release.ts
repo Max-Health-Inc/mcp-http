@@ -30,9 +30,41 @@ export interface ChangelogResult {
 
 const UNRELEASED = /^##\s*\[Unreleased\][^\n]*$/m;
 
+/**
+ * The `[Unreleased]: <base>/compare/<prevTag>...HEAD` link reference at the foot of a
+ * Keep a Changelog file. Both the compare base and the previous tag are captured so a
+ * new version's link can be derived without hardcoding the repository URL.
+ */
+const UNRELEASED_LINK = /^\[Unreleased\]:\s*(\S+\/compare\/)(\S+?)\.\.\.HEAD[ \t]*$/m;
+
 /** Escape a version string for safe embedding in a RegExp. */
 function escapeForRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Maintain the link-reference block when a version is stamped.
+ *
+ * Repoints `[Unreleased]` at the new tag and inserts a `[<version>]` compare link
+ * beneath it. Returns the input untouched when the file keeps no link references, or
+ * when they already point at this version.
+ */
+function updateLinkRefs(md: string, version: string): string {
+  const match = UNRELEASED_LINK.exec(md);
+  if (match === null) return md;
+
+  const line = match[0];
+  const compareBase = match[1];
+  const prevTag = match[2];
+  if (compareBase === undefined || prevTag === undefined) return md;
+
+  const newTag = `v${version}`;
+  if (prevTag === newTag) return md;
+
+  return md.replace(
+    line,
+    `[Unreleased]: ${compareBase}${newTag}...HEAD\n[${version}]: ${compareBase}${prevTag}...${newTag}`,
+  );
 }
 
 /**
@@ -79,10 +111,10 @@ export function promoteChangelog(
     };
   }
 
-  const content = md.replace(UNRELEASED, `## [Unreleased]\n\n## [${version}] — ${date}`);
+  const stamped = md.replace(UNRELEASED, `## [Unreleased]\n\n## [${version}] — ${date}`);
   return {
     status: "promoted",
-    content,
+    content: updateLinkRefs(stamped, version),
     message: `CHANGELOG: promoted [Unreleased] to [${version}] — ${date}.`,
   };
 }

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release tooling** — `scripts/changelog-release.ts` now maintains the link-reference block when it stamps a version: `[Unreleased]` is repointed at the new tag and a `[<version>]` compare link is inserted beneath it. The 0.2.0 release exposed this gap, shipping with `[Unreleased]` still comparing from `v0.1.6` and no `[0.2.0]` link at all. The repository URL and previous tag are derived from the existing `[Unreleased]` line rather than hardcoded, so the script stays portable to the other repos using it. Changelogs that keep no link block are left untouched.
+- Backfilled the `[0.2.0]` link reference that the 0.2.0 release itself could not add.
+- Corrected a line in the 0.2.0 entry that still claimed merging to `main` publishes nothing, contradicting the release-on-merge entry directly above it.
+
 ## [0.2.0] — 2026-07-31
 
 ### Fixed
@@ -24,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release tooling** — `release.yml` now honours an intentional version bump: if `package.json` is strictly ahead of the npm latest, that version ships instead of a forced patch bump. Also ported from `prefab`. Previously the workflow always patch-bumped and explicitly ignored `package.json`, so a minor or major release was impossible without editing the workflow.
 - **Release tooling** — **merging to `main` now publishes to npm.** `release.yml` gained a `push: branches: [main]` trigger alongside `workflow_dispatch`, and is split into a `gate` job that decides whether a release is warranted and a `release` job that runs only when it is. A merge that documents nothing under `## [Unreleased]` skips the release cleanly rather than failing, so a README or CI-only merge does not redden `main`; an explicit `workflow_dispatch` with an empty changelog still fails loudly. The release commit pushed back to `main` does not re-trigger the workflow, because pushes made with `GITHUB_TOKEN` never start another run.
 - **Release tooling** — `scripts/changelog-release.ts` gained a `--check <version>` mode that reports the status on stdout, writes nothing, and always exits 0. The gate job branches on it.
-- **CI** — `auto-pr.yml` keeps a standing `develop → main` promotion PR open. It mirrors the org reusable workflow at `Max-Health-Inc/.github/.github/workflows/create-pr.yml` rather than calling it, because GitHub does not permit a public repository to consume a reusable workflow from a private one and the `.github` repo is private. Merging that PR still publishes nothing; `release.yml` remains `workflow_dispatch`-only.
+- **CI** — `auto-pr.yml` keeps a standing `develop → main` promotion PR open. It mirrors the org reusable workflow at `Max-Health-Inc/.github/.github/workflows/create-pr.yml` rather than calling it, because GitHub does not permit a public repository to consume a reusable workflow from a private one and the `.github` repo is private. Merging that PR publishes, per the release-on-merge entry above.
 
 ### Changed
 
@@ -128,7 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.3...v0.1.4
