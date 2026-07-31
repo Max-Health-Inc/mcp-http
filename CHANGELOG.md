@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-07-31
+
 ### Fixed
 
 - **Release tooling** — `scripts/changelog-release.ts` now maintains the link-reference block when it stamps a version: `[Unreleased]` is repointed at the new tag and a `[<version>]` compare link is inserted beneath it. The 0.2.0 release exposed this gap, shipping with `[Unreleased]` still comparing from `v0.1.6` and no `[0.2.0]` link at all. The repository URL and previous tag are derived from the existing `[Unreleased]` line rather than hardcoded, so the script stays portable to the other repos using it. Changelogs that keep no link block are left untouched.
@@ -134,7 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.4...v0.1.5
