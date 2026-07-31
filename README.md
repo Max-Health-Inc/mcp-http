@@ -7,7 +7,7 @@ Built on the **Web Fetch API** — runs on Cloudflare Workers, Pages Functions, 
 ## Features
 
 - **Stateless MCP transport** — one `WebStandardStreamableHTTPServerTransport` per POST, no session state required
-- **RFC 9728** `/.well-known/oauth-protected-resource` served automatically
+- **RFC 9728** protected-resource metadata served automatically, at the path-aware route (`/.well-known/oauth-protected-resource/mcp` for an endpoint mounted at `/mcp`)
 - **RFC 8414** `/.well-known/oauth-authorization-server` (optional)
 - **Bearer extraction + 401 gate** with `WWW-Authenticate` resource-metadata pointer
 - **JWT `exp` early-rejection** (configurable, 30 s clock-skew buffer)
@@ -182,7 +182,8 @@ import {
   buildAuthorizationServerMetadata,
   protectedResourceResponse,
   authorizationServerResponse,
-  PROTECTED_RESOURCE_PATH, // "/.well-known/oauth-protected-resource"
+  protectedResourcePath, // (mcpPath) => RFC 9728 §3.1 path-aware route
+  PROTECTED_RESOURCE_PATH, // "/.well-known/oauth-protected-resource" (bare; compatibility alias)
   AUTHORIZATION_SERVER_PATH, // "/.well-known/oauth-authorization-server"
 
   // Transport
@@ -202,7 +203,8 @@ Request
   │
   ├─ OPTIONS  →  CORS preflight 204
   │
-  ├─ GET /.well-known/oauth-protected-resource  →  RFC 9728 metadata (resource = origin+mcpPath)
+  ├─ GET /.well-known/oauth-protected-resource{mcpPath}  →  RFC 9728 metadata (resource = origin+mcpPath)
+  ├─ GET /.well-known/oauth-protected-resource           →  same document (compatibility alias)
   ├─ GET /.well-known/oauth-authorization-server →  RFC 8414 metadata (static, discovered, or 404)
   │
   ├─ POST /mcp
@@ -214,6 +216,28 @@ Request
 ```
 
 All responses pass through the CORS middleware and the `onRequest` observability hook.
+
+### Protected-resource metadata route
+
+[RFC 9728 §3.1](https://datatracker.ietf.org/doc/html/rfc9728#section-3.1) forms the metadata URL by inserting `/.well-known/oauth-protected-resource` **between the host and the resource's path**, rather than appending the resource path to a fixed well-known URL. So a resource at `https://api.example.com/mcp` publishes its metadata at:
+
+```
+https://api.example.com/.well-known/oauth-protected-resource/mcp
+```
+
+That is the route this package serves, and the URL advertised in the `WWW-Authenticate: Bearer resource_metadata="…"` challenge on a 401. Use `protectedResourcePath(mcpPath)` to compute it yourself:
+
+```ts
+import { protectedResourcePath } from "@maxhealth.tech/mcp-http";
+
+protectedResourcePath("/mcp"); // "/.well-known/oauth-protected-resource/mcp"
+protectedResourcePath("/api/v1/mcp"); // "/.well-known/oauth-protected-resource/api/v1/mcp"
+protectedResourcePath("/"); // "/.well-known/oauth-protected-resource"
+```
+
+A root-mounted resource has no path component to insert, so it uses the bare well-known path.
+
+The bare path is **also** served, for every mount point, as a compatibility alias. Versions up to and including 0.2.1 served only the bare path, so clients that discovered the endpoint against an older release keep working. Prefer the path-aware route in new code.
 
 ## Development
 

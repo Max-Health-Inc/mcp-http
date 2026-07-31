@@ -1,0 +1,50 @@
+# Dependabot configuration for automatic dependency updates
+#
+# Mirrors the org config in Max-Health-Inc/armband and Max-Health-Inc/sleeptracker,
+# extended with the npm ecosystem.
+#
+# IMPORTANT — target-branch: "develop"
+# Merging to `main` publishes to npm (see .github/workflows/release.yml). Dependabot
+# PRs must therefore land on `develop` and ship through the normal promotion PR, or a
+# routine dependency bump would cut a release on merge.
+
+version: 2
+updates:
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      # One PR per week for all action bumps rather than one per action.
+      actions:
+        patterns:
+          - "*"
+
+  # npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+    groups:
+      # Everything here is a devDependency; grouping keeps this to one PR a week.
+      dev-dependencies:
+        dependency-type: "development"
+    ignore:
+      # TypeScript 7 is out, but typescript-eslint still declares a
+      # `typescript: >=4.8.4 <6.1.0` peer range, so a TS 7 bump breaks `bun run lint`.
+      # Remove this entry once typescript-eslint supports the 7.x line — a grouped PR
+      # would otherwise fail every week and block the other dev-dependency updates.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]

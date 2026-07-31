@@ -3,6 +3,7 @@ import {
   buildProtectedResourceMetadata,
   buildAuthorizationServerMetadata,
   protectedResourceResponse,
+  protectedResourcePath,
   authorizationServerResponse,
   PROTECTED_RESOURCE_PATH,
   AUTHORIZATION_SERVER_PATH,
@@ -110,5 +111,40 @@ describe("authorizationServerResponse", () => {
 
   it("path constant is correct RFC 8414 well-known path", () => {
     expect(AUTHORIZATION_SERVER_PATH).toBe("/.well-known/oauth-authorization-server");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RFC 9728 §3.1 path-aware metadata route
+// ---------------------------------------------------------------------------
+
+describe("protectedResourcePath", () => {
+  it("inserts the well-known segment ahead of the resource path", () => {
+    expect(protectedResourcePath("/mcp")).toBe(
+      "/.well-known/oauth-protected-resource/mcp",
+    );
+  });
+
+  it("handles a nested mount point", () => {
+    expect(protectedResourcePath("/api/v1/mcp")).toBe(
+      "/.well-known/oauth-protected-resource/api/v1/mcp",
+    );
+  });
+
+  it("yields the bare path for a root-mounted resource", () => {
+    expect(protectedResourcePath("/")).toBe("/.well-known/oauth-protected-resource");
+    expect(protectedResourcePath("")).toBe("/.well-known/oauth-protected-resource");
+  });
+
+  it("ignores a trailing slash on the mount point", () => {
+    expect(protectedResourcePath("/mcp/")).toBe(
+      "/.well-known/oauth-protected-resource/mcp",
+    );
+  });
+
+  it("tolerates a mount point given without a leading slash", () => {
+    expect(protectedResourcePath("mcp")).toBe(
+      "/.well-known/oauth-protected-resource/mcp",
+    );
   });
 });

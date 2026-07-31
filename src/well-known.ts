@@ -70,8 +70,37 @@ export function authorizationServerResponse(
   });
 }
 
-/** Pathname for the protected-resource well-known document. */
+/**
+ * Pathname for the protected-resource well-known document, with no resource
+ * path component.
+ *
+ * This is the correct route only for a resource mounted at the origin root.
+ * For any other mount point use {@link protectedResourcePath}, which applies
+ * the RFC 9728 §3.1 path-insertion rule. This constant remains exported, and
+ * remains served, as a compatibility alias for clients that probe the bare
+ * path.
+ */
 export const PROTECTED_RESOURCE_PATH = WELL_KNOWN_PR;
 
 /** Pathname for the authorization-server well-known document. */
 export const AUTHORIZATION_SERVER_PATH = WELL_KNOWN_AS;
+
+/**
+ * Apply the RFC 9728 §3.1 path-insertion rule for a resource mount point.
+ *
+ * The well-known segment is inserted between the host and the resource's path,
+ * so a resource at `https://api.example.com/mcp` publishes its metadata at
+ * `https://api.example.com/.well-known/oauth-protected-resource/mcp`, not at
+ * the bare well-known path.
+ *
+ * A root-mounted resource (`/` or empty) has no path component to insert and
+ * yields the bare path.
+ *
+ * @param mcpPath Path the MCP endpoint is mounted on, e.g. `/mcp`.
+ * @returns The pathname the metadata document should be served from.
+ */
+export function protectedResourcePath(mcpPath: string): string {
+  const trimmed = mcpPath.replace(/\/+$/, "");
+  if (trimmed === "") return WELL_KNOWN_PR;
+  return `${WELL_KNOWN_PR}${trimmed.startsWith("/") ? "" : "/"}${trimmed}`;
+}

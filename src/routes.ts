@@ -1,4 +1,8 @@
-import { PROTECTED_RESOURCE_PATH, AUTHORIZATION_SERVER_PATH } from "./well-known.js";
+import {
+  PROTECTED_RESOURCE_PATH,
+  AUTHORIZATION_SERVER_PATH,
+  protectedResourcePath,
+} from "./well-known.js";
 
 /** Default path the MCP endpoint is mounted on when `mcpPath` is not configured. */
 export const DEFAULT_MCP_PATH = "/mcp";
@@ -21,7 +25,11 @@ export function allowedMethodsFor(
   mcpPath: string = DEFAULT_MCP_PATH,
 ): readonly string[] {
   if (pathname === mcpPath) return ["POST"];
-  if (pathname === PROTECTED_RESOURCE_PATH || pathname === AUTHORIZATION_SERVER_PATH) {
+  if (
+    pathname === protectedResourcePath(mcpPath) ||
+    pathname === PROTECTED_RESOURCE_PATH ||
+    pathname === AUTHORIZATION_SERVER_PATH
+  ) {
     return ["GET"];
   }
   return [];
