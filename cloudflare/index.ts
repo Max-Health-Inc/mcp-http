@@ -56,13 +56,13 @@ export type PagesOnRequestHandler<Env = unknown> = (
  * Cloudflare-specific types in their app code.
  */
 export function mcpPagesFunction<Env = unknown>(
-  config: McpHttpHandlerConfig,
+  config: McpHttpHandlerConfig<Env>,
 ): PagesOnRequestHandler<Env> {
   const handler = createMcpHttpHandler(config);
 
   return (context: PagesFunctionEventContext<Env>): Promise<Response> => {
     return handler(context.request, {
-      env: context.env as unknown,
+      env: context.env,
       waitUntil: context.waitUntil.bind(context),
     });
   };

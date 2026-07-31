@@ -80,7 +80,9 @@ export type { McpHandler };
  *
  * @throws {Error} If `authorizationServer` is not a valid URL.
  */
-export function createMcpHttpHandler(config: McpHttpHandlerConfig): McpHandler {
+export function createMcpHttpHandler<Env = unknown>(
+  config: McpHttpHandlerConfig<Env>,
+): McpHandler {
   // Validate at construction time — fail loud at the boundary.
   if (config.authorizationServer !== undefined) {
     try {
@@ -103,21 +105,23 @@ export function createMcpHttpHandler(config: McpHttpHandlerConfig): McpHandler {
 /**
  * Convenience wrapper so consumers can do:
  * ```ts
- * export default { fetch: createMcpHttpHandler(config) };
+ * export default { fetch: createWorkerFetch<Env>({ ... }) };
  * ```
- * The handler signature is compatible with the Cloudflare Workers `fetch` export.
+ * The generic `Env` parameter types the `env` argument in the returned fetch
+ * function and flows through to `createServer`'s `ctx.env`, making it
+ * compatible with typed Cloudflare Workers `fetch` exports.
  */
-export function createWorkerFetch(
-  config: McpHttpHandlerConfig,
+export function createWorkerFetch<Env = unknown>(
+  config: McpHttpHandlerConfig<Env>,
 ): (
   req: Request,
-  env?: unknown,
+  env?: Env,
   ctx?: { waitUntil?: (p: Promise<unknown>) => void },
 ) => Promise<Response> {
   const handler = createMcpHttpHandler(config);
   return (
     req: Request,
-    env?: unknown,
+    env?: Env,
     ctx?: { waitUntil?: (p: Promise<unknown>) => void },
   ): Promise<Response> => {
     const platformCtx: Omit<PlatformCtx, "request"> = { env };

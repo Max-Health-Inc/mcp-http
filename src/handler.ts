@@ -23,7 +23,11 @@ const DEFAULT_MCP_PATH = "/mcp";
 const AS_METADATA_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /** Attach CORS headers to any `Response`, returning a new `Response` with those headers merged. */
-function withCors(res: Response, req: Request, config: McpHttpHandlerConfig): Response {
+function withCors(
+  res: Response,
+  req: Request,
+  config: Pick<McpHttpHandlerConfig, "cors">,
+): Response {
   if (config.cors === false) return res;
 
   const headers = new Headers(res.headers);
@@ -71,7 +75,9 @@ export type McpHandler = (
  * All routing, auth gating, well-known doc serving, CORS, and transport
  * lifecycle are encapsulated here.
  */
-export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
+export function buildHandler<Env = unknown>(
+  config: McpHttpHandlerConfig<Env>,
+): McpHandler {
   const mcpPath = config.mcpPath ?? DEFAULT_MCP_PATH;
   const earlyReject = config.earlyRejectExpiredTokens !== false;
   const stateful = config.stateful === true;
@@ -82,8 +88,14 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
     ? config.authorizationServer.replace(/\/+$/, "")
     : null;
 
-  // Session store for stateful mode (shared across all requests)
-  const sessionStore = stateful ? new SessionStore({ ttlMs: config.sessionTtlMs }) : null;
+  // Session store for stateful mode — lazily initialized on first request
+  // to avoid triggering `setInterval` in global scope (Cloudflare Workers
+  // disallow async I/O and timers at the module level).
+  let sessionStore: SessionStore | null = null;
+  const getSessionStore = (): SessionStore => {
+    sessionStore ??= new SessionStore({ ttlMs: config.sessionTtlMs });
+    return sessionStore;
+  };
 
   // ------------------------------------------------------------------
   // Authorization Server metadata — static or auto-discovered
@@ -256,14 +268,14 @@ export function buildHandler(config: McpHttpHandlerConfig): McpHandler {
         }
       }
 
-      const ctx: PlatformCtx = { request: req, ...platformCtx };
+      const ctx: PlatformCtx<Env> = { request: req, ...platformCtx } as PlatformCtx<Env>;
 
       // ── Stateful mode: use session store for persistent transports ──
-      if (stateful && sessionStore) {
+      if (stateful) {
         const statefulOpts: Parameters<typeof handleMcpPostStateful>[0] = {
           createServer: () => config.createServer(token, ctx),
           req,
-          sessionStore,
+          sessionStore: getSessionStore(),
         };
         if (config.onError !== undefined) {
           statefulOpts.onError = config.onError;

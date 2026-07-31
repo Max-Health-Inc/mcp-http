@@ -33,7 +33,7 @@ import type { McpHttpHandlerConfig, PlatformCtx } from "../src/types.js";
  * Extended platform context available inside `createServer` when using the
  * Hono adapter. Includes the full Hono `Context` for env bindings and helpers.
  */
-export interface HonoPlatformCtx<E extends Env = Env> extends PlatformCtx {
+export interface HonoPlatformCtx<E extends Env = Env> extends PlatformCtx<E["Bindings"]> {
   /** The Hono request context — provides access to `c.env`, `c.set`, etc. */
   c: Context<E>;
 }
@@ -72,7 +72,7 @@ export function mcpHono<E extends Env = Env>(config: McpHonoConfig<E>): Hono<E> 
     const handler = createMcpHttpHandler({
       ...config,
       createServer: (token: string | null, ctx: PlatformCtx) =>
-        config.createServer(token, { ...ctx, c }),
+        config.createServer(token, { ...ctx, env: c.env, c }),
     });
 
     const platformCtx: Omit<PlatformCtx, "request"> = {
