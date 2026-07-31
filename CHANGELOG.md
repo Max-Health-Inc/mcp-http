@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CORS** — `MCP-Protocol-Version` is now in `Access-Control-Allow-Headers`. That header has been required on every MCP HTTP request since protocol version 2025-06-18 and is not CORS-safelisted, so every browser-hosted MCP client previously failed preflight and never reached the endpoint. ([#7](https://github.com/Max-Health-Inc/mcp-http/issues/7))
+- **CORS** — `Access-Control-Allow-Methods` is now derived per route instead of being hardcoded to `GET, POST, DELETE, OPTIONS`. Preflight was advertising `GET` and `DELETE` on the MCP endpoint while the handler answered those with `405 Method Not Allowed`. Both the preflight value and the `405` `Allow` header now come from one table in `src/routes.ts`, and a test asserts they agree. ([#7](https://github.com/Max-Health-Inc/mcp-http/issues/7))
+- **CORS** — Per-tool `Mcp-Param-*` request headers (SEP-2243) are now admitted. Their names are chosen by the server per tool, so a fixed list structurally cannot cover them; matching headers listed in the preflight `Access-Control-Request-Headers` are echoed back. Names outside the prefix are not reflected. ([#7](https://github.com/Max-Health-Inc/mcp-http/issues/7))
+- **CORS** — `Access-Control-Expose-Headers` is omitted rather than emitted with an empty value when the expose list is empty.
+
+### Added
+
+- `handlePreflight()` accepts an optional third `PreflightRouteOptions` argument (`{ mcpPath }`) so route-accurate methods can be advertised when the endpoint is not mounted at the default `/mcp`. Existing two-argument calls keep working.
+- `DEFAULT_MCP_PATH`, `allowedMethodsFor()` and `allowMethodsValue()` are exported for consumers composing their own routing.
+
 ### Changed
 
 - Dependencies updated to latest in-range versions: `@modelcontextprotocol/sdk` 1.29.0 → 1.30.0, `@types/bun` 1.3.13 → 1.3.14, `eslint` 10.3.0 → 10.8.0, `hono` 4.12.18 → 4.12.33, `prettier` 3.8.3 → 3.9.6, `typescript-eslint` 8.59.2 → 8.65.0. Published `peerDependencies` ranges are unchanged (`@modelcontextprotocol/sdk >=1.29.0`, `hono >=4.12.0`) so consumers are not forced to upgrade.

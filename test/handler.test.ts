@@ -431,6 +431,65 @@ describe("Non-POST on /mcp", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Issue #7 — preflight must not advertise methods the handler rejects
+// ---------------------------------------------------------------------------
+
+describe("preflight and 405 agree on allowed methods", () => {
+  const handler = createMcpHttpHandler(makeConfig());
+
+  it("advertises exactly what the 405 Allow header reports for /mcp", async () => {
+    const preflight = await handler(makeReq("/mcp", "OPTIONS"));
+    const rejected = await handler(makeReq("/mcp", "GET", validToken()));
+
+    expect(preflight.status).toBe(204);
+    expect(rejected.status).toBe(405);
+    expect(preflight.headers.get("Access-Control-Allow-Methods")).toBe(
+      rejected.headers.get("Allow"),
+    );
+  });
+
+  it("does not advertise DELETE, which /mcp answers with 405", async () => {
+    const preflight = await handler(makeReq("/mcp", "OPTIONS"));
+    const deleted = await handler(makeReq("/mcp", "DELETE", validToken()));
+
+    expect(deleted.status).toBe(405);
+    expect(preflight.headers.get("Access-Control-Allow-Methods")).not.toContain("DELETE");
+  });
+
+  it("advertises GET on the well-known documents, which serve GET", async () => {
+    const preflight = await handler(
+      makeReq("/.well-known/oauth-protected-resource", "OPTIONS"),
+    );
+    const served = await handler(makeReq("/.well-known/oauth-protected-resource", "GET"));
+
+    expect(served.status).toBe(200);
+    expect(preflight.headers.get("Access-Control-Allow-Methods")).toBe("GET, OPTIONS");
+  });
+
+  it("allows MCP-Protocol-Version through preflight on /mcp", async () => {
+    const req = new Request(`${BASE}/mcp`, {
+      method: "OPTIONS",
+      headers: { "Access-Control-Request-Headers": "mcp-protocol-version" },
+    });
+    const res = await handler(req);
+    expect(res.headers.get("Access-Control-Allow-Headers")?.toLowerCase()).toContain(
+      "mcp-protocol-version",
+    );
+  });
+
+  it("honours a custom mcpPath for both preflight and 405", async () => {
+    const custom = createMcpHttpHandler(makeConfig({ mcpPath: "/rpc" }));
+    const preflight = await custom(makeReq("/rpc", "OPTIONS"));
+    const rejected = await custom(makeReq("/rpc", "GET", validToken()));
+
+    expect(rejected.status).toBe(405);
+    expect(preflight.headers.get("Access-Control-Allow-Methods")).toBe(
+      rejected.headers.get("Allow"),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 404 for unknown routes
 // ---------------------------------------------------------------------------
 

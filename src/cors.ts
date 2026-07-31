@@ -1,12 +1,18 @@
 import type { CorsOptions } from "./types.js";
+import { allowedMethodsFor, allowMethodsValue } from "./routes.js";
 
 /**
  * MCP-required request headers (per the MCP HTTP transport spec).
  * Clients must be able to send all of these.
+ *
+ * `MCP-Protocol-Version` has been required on every MCP HTTP request since
+ * protocol version 2025-06-18 and is not CORS-safelisted, so omitting it makes
+ * every browser-hosted client fail preflight.
  */
 const MCP_ALLOW_HEADERS = [
   "Content-Type",
   "Authorization",
+  "MCP-Protocol-Version",
   "Mcp-Session-Id",
   "Last-Event-ID",
 ] as const;
@@ -16,7 +22,44 @@ const MCP_ALLOW_HEADERS = [
  */
 const MCP_EXPOSE_HEADERS = ["Mcp-Session-Id"] as const;
 
+/**
+ * Prefix for the per-tool parameter headers introduced by SEP-2243.
+ *
+ * A server may mirror any tool parameter into `Mcp-Param-{Name}`, and a
+ * conforming client MUST send it. The names are chosen per tool at runtime, so
+ * no fixed list can cover them — they are admitted by prefix instead.
+ */
+const MCP_PARAM_HEADER_PREFIX = "mcp-param-";
+
 const DEFAULT_MAX_AGE = 600;
+
+/**
+ * Resolve `Access-Control-Allow-Headers` for a request.
+ *
+ * Returns the static list, plus any `Mcp-Param-*` headers the client asked for
+ * in `Access-Control-Request-Headers`. Only the documented prefix is echoed —
+ * arbitrary requested headers are not reflected.
+ */
+function resolveAllowHeaders(req: Request, options: CorsOptions): string {
+  const base: string[] = [...MCP_ALLOW_HEADERS, ...(options.allowHeaders ?? [])];
+
+  const requested = req.headers.get("Access-Control-Request-Headers");
+  if (requested === null) return base.join(", ");
+
+  const known = new Set(base.map((h) => h.toLowerCase()));
+  const params: string[] = [];
+
+  for (const raw of requested.split(",")) {
+    const name = raw.trim();
+    const lower = name.toLowerCase();
+    if (name === "" || known.has(lower)) continue;
+    if (!lower.startsWith(MCP_PARAM_HEADER_PREFIX)) continue;
+    known.add(lower);
+    params.push(name);
+  }
+
+  return [...base, ...params].join(", ");
+}
 
 /** Resolve the `Access-Control-Allow-Origin` value for a given request. */
 function resolveOrigin(req: Request, origin: CorsOptions["origin"]): string | null {
@@ -70,17 +113,27 @@ export function applyCors(headers: Headers, req: Request, options: CorsOptions):
     headers.set("Access-Control-Allow-Credentials", "true");
   }
 
-  const allowHeaders = [...MCP_ALLOW_HEADERS, ...(options.allowHeaders ?? [])].join(", ");
-  headers.set("Access-Control-Allow-Headers", allowHeaders);
+  headers.set("Access-Control-Allow-Headers", resolveAllowHeaders(req, options));
 
-  const exposeHeaders = [...MCP_EXPOSE_HEADERS, ...(options.exposeHeaders ?? [])].join(
-    ", ",
-  );
-  headers.set("Access-Control-Expose-Headers", exposeHeaders);
+  const exposeHeaders = [...MCP_EXPOSE_HEADERS, ...(options.exposeHeaders ?? [])];
+  // Omit the header entirely rather than emitting a bare empty value.
+  if (exposeHeaders.length > 0) {
+    headers.set("Access-Control-Expose-Headers", exposeHeaders.join(", "));
+  }
+}
+
+/** Route context needed to advertise accurate preflight methods. */
+export interface PreflightRouteOptions {
+  /** Path the MCP endpoint is mounted on. Defaults to `/mcp`. */
+  mcpPath?: string;
 }
 
 /**
  * Build a `Response` for an HTTP OPTIONS preflight request.
+ *
+ * `Access-Control-Allow-Methods` is derived per route from the same table the
+ * request handler uses for its `405` `Allow` header, so preflight never
+ * advertises a method the endpoint would reject.
  *
  * Returns `null` when CORS is disabled (`false`) — the caller should treat a
  * `null` result as a normal request to be routed.
@@ -88,13 +141,16 @@ export function applyCors(headers: Headers, req: Request, options: CorsOptions):
 export function handlePreflight(
   req: Request,
   corsConfig: false | CorsOptions,
+  options: PreflightRouteOptions = {},
 ): Response | null {
   if (corsConfig === false) return null;
 
   const headers = new Headers();
   applyCors(headers, req, corsConfig);
 
-  headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+  const { pathname } = new URL(req.url);
+  const methods = allowedMethodsFor(pathname, options.mcpPath);
+  headers.set("Access-Control-Allow-Methods", allowMethodsValue(methods, true));
   headers.set("Access-Control-Max-Age", String(corsConfig.maxAge ?? DEFAULT_MAX_AGE));
 
   return new Response(null, { status: 204, headers });
