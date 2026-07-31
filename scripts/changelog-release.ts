@@ -10,6 +10,10 @@
  * The CLI wrapper exits non-zero on `"missing"` so a release with no changelog
  * entry fails in CI. Run: `bun run scripts/changelog-release.ts <version> [date]`.
  *
+ * `--check` reports the status on stdout and always exits 0, writing nothing.
+ * The release workflow uses it to decide whether a merge to `main` should cut a
+ * release at all, versus one that merely documented nothing.
+ *
  * Ported from the org-canonical implementation in Max-Health-Inc/prefab.
  */
 
@@ -88,16 +92,27 @@ export function promoteChangelog(
 // ---------------------------------------------------------------------------
 
 if (import.meta.main) {
-  const version = process.argv[2];
+  const argv = process.argv.slice(2);
+  const checkOnly = argv[0] === "--check";
+  const args = checkOnly ? argv.slice(1) : argv;
+
+  const version = args[0];
   if (version === undefined || version === "") {
     console.error("changelog-release: missing <version> argument");
     process.exit(2);
   }
 
-  const date = process.argv[3] ?? new Date().toISOString().slice(0, 10);
+  const date = args[1] ?? new Date().toISOString().slice(0, 10);
   const path = process.env["CHANGELOG_PATH"] ?? "CHANGELOG.md";
 
   const result = promoteChangelog(readFileSync(path, "utf8"), version, date);
+
+  // --check: report only. Never writes, never fails — the caller branches on the
+  // status so a merge that documented nothing can skip the release cleanly.
+  if (checkOnly) {
+    console.log(result.status);
+    process.exit(0);
+  }
 
   if (result.status === "missing") {
     console.error(`[mcp-http] ${result.message}`);

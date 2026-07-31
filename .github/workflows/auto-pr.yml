@@ -11,8 +11,8 @@ name: Auto PR (develop → main)
 # legal-web, llm-gateway) is private. The behaviour below deliberately mirrors the shared
 # workflow so the two can be reconciled if .github is ever made public.
 #
-# Note: unlike the deploy-on-merge repos in the org, merging here publishes nothing.
-# release.yml is workflow_dispatch-only and is what tags and triggers publish.yml.
+# Note: merging this PR PUBLISHES to npm. release.yml runs on push to main.
+# A merge documenting nothing under [Unreleased] skips the release instead of failing.
 
 on:
   push:
@@ -64,7 +64,7 @@ jobs:
             --title "🚀 Promote develop → main (@maxhealth.tech/mcp-http)" \
             --body "**Automated PR** — merging \`${HEAD_BRANCH}\` into \`${BASE_BRANCH}\`.
 
-          Merging publishes nothing. Run the **Release & Publish** workflow to cut a version.
+          Merging **publishes to npm**: release.yml stamps the changelog, tags, and publishes.
 
           Commits ahead of ${BASE_BRANCH}: ${{ steps.check-diff.outputs.commits_ahead }}"
         env:
@@ -76,7 +76,7 @@ jobs:
           PR_NUMBER=$(gh pr list --base "$BASE_BRANCH" --head "$HEAD_BRANCH" --state open --json number --jq '.[0].number')
           gh pr edit "$PR_NUMBER" --body "**Automated PR** — merging \`${HEAD_BRANCH}\` into \`${BASE_BRANCH}\`.
 
-          Merging publishes nothing. Run the **Release & Publish** workflow to cut a version.
+          Merging **publishes to npm**: release.yml stamps the changelog, tags, and publishes.
 
           Commits ahead of ${BASE_BRANCH}: ${{ steps.check-diff.outputs.commits_ahead }}
           _Updated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')_"
