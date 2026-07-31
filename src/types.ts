@@ -1,4 +1,4 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/server";
 
 // ---------------------------------------------------------------------------
 // OAuth / RFC 8414 + RFC 9728 metadata shapes
@@ -142,12 +142,20 @@ export interface McpHttpHandlerConfig<Env = unknown> {
    * to the client.
    *
    * Default: `false` (stateless, backward-compatible).
+   *
+   * @deprecated Sessions are removed in the 2026-07-28 protocol revision, which
+   * also replaces server-initiated sampling with in-result input requests. This
+   * option selects the session-based path and is scheduled for removal in 0.4.0.
+   * @see {@link https://www.npmjs.com/package/@modelcontextprotocol/server | @modelcontextprotocol/server}
    */
   stateful?: boolean;
 
   /**
    * Session TTL in milliseconds. Only used when `stateful: true`.
    * Default: 5 minutes (300_000).
+   *
+   * @deprecated Tied to the deprecated `stateful` option; scheduled for removal
+   * in 0.4.0.
    */
   sessionTtlMs?: number;
 

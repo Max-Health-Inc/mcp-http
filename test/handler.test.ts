@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from "bun:test";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHttpHandler } from "../src/index.js";
 import type { McpHttpHandlerConfig } from "../src/types.js";
 

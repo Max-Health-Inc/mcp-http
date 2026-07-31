@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { forwardBearer } from "../src/fetch.js";
 import { createWorkerFetch } from "../src/index.js";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 
 // ---------------------------------------------------------------------------
 // forwardBearer

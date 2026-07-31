@@ -140,6 +140,31 @@ jobs:
           git tag "v${NEXT}"
           git push origin main --tags
 
+      # -- Keep develop in step with the promoted changelog
+      #
+      # The release commit promotes [Unreleased] to a version heading on main.
+      # If develop is left behind, its still-open [Unreleased] and main's new
+      # version heading differ only in where that heading sits, and git's
+      # line-based merge will happily file develop's newer entries under the
+      # older release heading — silently attributing unshipped work to a
+      # published version, and emptying [Unreleased] so the next merge skips its
+      # release. That happened between v0.2.1 and v0.3.0.
+      #
+      # Best effort by design: never fail a completed release over a sync. If the
+      # merge conflicts, the summary says so and it is resolved by hand.
+      - name: Sync release commit back into develop
+        run: |
+          NEXT="${{ needs.gate.outputs.next }}"
+          git fetch origin develop || exit 0
+          if git checkout -B develop origin/develop && git merge main --no-edit; then
+            git push origin develop
+            echo "- Synced \`v${NEXT}\` release commit back into \`develop\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            git merge --abort || true
+            echo "- :warning: Could not auto-sync \`v${NEXT}\` into \`develop\` (conflict). Merge \`main\` into \`develop\` by hand before the next release, or unreleased entries will be mis-filed under \`## [${NEXT}]\`." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          git checkout main
+
       # -- GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
