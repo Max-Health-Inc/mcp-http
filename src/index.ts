@@ -35,6 +35,8 @@ export { extractBearer, isJwtExpired } from "./jwt.js";
 export { forwardBearer } from "./fetch.js";
 export type { FetchFn } from "./fetch.js";
 export { applyCors, handlePreflight } from "./cors.js";
+export type { PreflightRouteOptions } from "./cors.js";
+export { DEFAULT_MCP_PATH, allowedMethodsFor, allowMethodsValue } from "./routes.js";
 export {
   buildProtectedResourceMetadata,
   buildAuthorizationServerMetadata,

@@ -15,5 +15,5 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*", "hono/**/*", "cloudflare/**/*", "test/**/*"]
+  "include": ["src/**/*", "hono/**/*", "cloudflare/**/*", "test/**/*", "scripts/**/*"]
 }

@@ -144,7 +144,11 @@ createMcpHttpHandler({
 });
 ```
 
-The default CORS config allows `*` origins and exposes the MCP-required headers (`Content-Type`, `Authorization`, `Mcp-Session-Id`, `Last-Event-ID`).
+The default CORS config allows `*` origins and admits the MCP-required request headers (`Content-Type`, `Authorization`, `MCP-Protocol-Version`, `Mcp-Session-Id`, `Last-Event-ID`).
+
+Per-tool `Mcp-Param-*` headers (SEP-2243) are admitted dynamically: any such header a client lists in its preflight `Access-Control-Request-Headers` is echoed back in `Access-Control-Allow-Headers`. Header names outside that prefix are never reflected, so you still declare your own via `allowHeaders`.
+
+`Access-Control-Allow-Methods` is derived per route from the same table that produces the `405` `Allow` header, so preflight only advertises methods the endpoint actually serves (`POST` on the MCP path, `GET` on the well-known documents).
 
 ## Exports
 

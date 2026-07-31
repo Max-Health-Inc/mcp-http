@@ -16,8 +16,7 @@ import {
 } from "./well-known.js";
 import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
 import { SessionStore } from "./session-store.js";
-
-const DEFAULT_MCP_PATH = "/mcp";
+import { DEFAULT_MCP_PATH, allowedMethodsFor, allowMethodsValue } from "./routes.js";
 
 /** How long a successfully discovered AS metadata document is cached (ms). */
 const AS_METADATA_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -180,7 +179,7 @@ export function buildHandler<Env = unknown>(
     // OPTIONS preflight
     // -----------------------------------------------------------------------
     if (req.method === "OPTIONS") {
-      const preflight = handlePreflight(req, config.cors ?? {});
+      const preflight = handlePreflight(req, config.cors ?? {}, { mcpPath });
       if (preflight !== null) {
         return respond(preflight, "preflight");
       }
@@ -240,7 +239,10 @@ export function buildHandler<Env = unknown>(
     if (pathname === mcpPath && req.method !== "POST") {
       // When CORS is enabled, OPTIONS is handled earlier (returns 204). If we
       // reach here with OPTIONS it means cors:false — don't advertise OPTIONS.
-      const allowMethods = config.cors !== false ? "POST, OPTIONS" : "POST";
+      const allowMethods = allowMethodsValue(
+        allowedMethodsFor(pathname, mcpPath),
+        config.cors !== false,
+      );
       return respond(
         new Response(null, {
           status: 405,
