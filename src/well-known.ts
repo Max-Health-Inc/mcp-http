@@ -1,7 +1,16 @@
+import { getOAuthProtectedResourceMetadataUrl } from "@modelcontextprotocol/server";
 import type { AuthorizationServerMetadata, ProtectedResourceMetadata } from "./types.js";
 
 const WELL_KNOWN_PR = "/.well-known/oauth-protected-resource";
 const WELL_KNOWN_AS = "/.well-known/oauth-authorization-server";
+
+/**
+ * Origin used only to borrow the SDK's path rule. `getOAuthProtectedResourceMetadataUrl`
+ * works in absolute URLs, but this package's routing works in pathnames, so a
+ * throwaway origin is attached and then discarded. `.invalid` is reserved by
+ * RFC 2606 and can never resolve.
+ */
+const PATH_ONLY_ORIGIN = "https://x.invalid";
 
 /**
  * Build the RFC 9728 Protected Resource Metadata document.
@@ -12,6 +21,23 @@ const WELL_KNOWN_AS = "/.well-known/oauth-authorization-server";
  *
  * Consumer-supplied extra fields are merged in, but `resource` and
  * `authorization_servers` cannot be overridden.
+ *
+ * **Why this is not delegated to the SDK.** The obvious move is to call
+ * `buildOAuthProtectedResourceMetadata`, but its `AuthMetadataOptions` requires a
+ * full RFC 8414 `oauthMetadata` document (`authorization_endpoint`,
+ * `token_endpoint`, `response_types_supported`) while this package is configured
+ * with only an AS base URL. The SDK reads nothing but `issuer` from it, so
+ * delegating would mean fabricating three endpoint values that are discarded —
+ * and that would silently start leaking invented endpoints if a future SDK
+ * version began emitting them. The document is three fields; owning it is safer
+ * than contorting the call. The *route*, which is the subtle part, is delegated
+ * via {@link protectedResourcePath}.
+ *
+ * @deprecated Prefer `buildOAuthProtectedResourceMetadata` from
+ * `@modelcontextprotocol/server`, passing your real AS metadata document. This
+ * wrapper exists so code written against `mcp-http` 0.2.x keeps working, and
+ * will be removed in 0.4.0.
+ * @see {@link https://www.npmjs.com/package/@modelcontextprotocol/server | @modelcontextprotocol/server}
  */
 export function buildProtectedResourceMetadata(
   resourceUrl: string,
@@ -96,11 +122,14 @@ export const AUTHORIZATION_SERVER_PATH = WELL_KNOWN_AS;
  * A root-mounted resource (`/` or empty) has no path component to insert and
  * yields the bare path.
  *
+ * Delegates to `getOAuthProtectedResourceMetadataUrl` from
+ * `@modelcontextprotocol/server` so this package's route can never drift from
+ * the SDK's interpretation of the rule.
+ *
  * @param mcpPath Path the MCP endpoint is mounted on, e.g. `/mcp`.
  * @returns The pathname the metadata document should be served from.
  */
 export function protectedResourcePath(mcpPath: string): string {
-  const trimmed = mcpPath.replace(/\/+$/, "");
-  if (trimmed === "") return WELL_KNOWN_PR;
-  return `${WELL_KNOWN_PR}${trimmed.startsWith("/") ? "" : "/"}${trimmed}`;
+  const resource = new URL(mcpPath === "" ? "/" : mcpPath, PATH_ONLY_ORIGIN);
+  return new URL(getOAuthProtectedResourceMetadataUrl(resource)).pathname;
 }

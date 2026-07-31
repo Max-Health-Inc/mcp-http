@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking (dependency)** — the peer dependency moves from the retired monolithic `@modelcontextprotocol/sdk` (`>=1.29.0`) to `@modelcontextprotocol/server` (`^2.0.0`). The v2 SDK went stable on 2026-07-27. **No export was removed, renamed, or changed shape**, so the only consumer change is the dependency swap and updating `McpServer` imports to `@modelcontextprotocol/server`; `McpServer` and `WebStandardStreamableHTTPServerTransport` are API-compatible across the two majors. See "Migrating from 0.2.x" in the README. Consumers who cannot move yet should stay on the 0.2.x line.
+- The package is repositioned as the OAuth, CORS and observability layer over the official SDK rather than an MCP transport implementation, and the description reflects that.
+- `protectedResourcePath()` now delegates to `getOAuthProtectedResourceMetadataUrl` from the SDK, so the route can never drift from the SDK's reading of RFC 9728 §3.1. Verified to produce identical output for `/mcp`, nested, root, empty and trailing-slash mount points.
+
+### Deprecated
+
+Each of these still works and is scheduled for removal in 0.4.0. They carry `@deprecated` JSDoc with a pointer to the replacement, so editors surface it.
+
+- `handleMcpPostStateful`, `SessionStore`, and the `stateful` / `sessionTtlMs` config options — sessions are removed in the 2026-07-28 revision, which also replaces server-initiated sampling with in-result input requests, so this path has no long-term future.
+- `buildProtectedResourceMetadata` — prefer `buildOAuthProtectedResourceMetadata`, passing a real RFC 8414 document. Not delegated internally: the SDK's option type demands `authorization_endpoint`, `token_endpoint` and `response_types_supported` while this package is configured with only an issuer URL, and it reads none of them — delegating would mean fabricating three values that are discarded today and could start leaking if the SDK began emitting them.
+
+### Not deprecated, deliberately
+
+- `handleMcpPost` was initially marked deprecated in favour of `createMcpHandler` and that marker has been removed as misleading. `createMcpHandler` is the better default for new code, but it is not a drop-in replacement: its `onerror` is reporting-only and "never alters the response", whereas `onError` here may return a `Response` to override the reply. More decisively, `createMcpHttpHandler` — the primary, non-deprecated entry point — is built on `handleMcpPost`, so marking it for removal in 0.4.0 was a promise that could not be kept without dropping `onError` from the main API. Attempting the delegation anyway failed 4 existing tests by swallowing errors before `onError` could run. The JSDoc now recommends `createMcpHandler` without deprecating.
+
 ### Fixed
 
 - **Spec** — Protected-resource metadata is now served at the [RFC 9728 §3.1](https://datatracker.ietf.org/doc/html/rfc9728#section-3.1) path-aware route. The spec forms the metadata URL by inserting the well-known segment _between the host and the resource path_, so an endpoint mounted at `/mcp` publishes at `/.well-known/oauth-protected-resource/mcp`. Up to and including 0.2.1 only the bare `/.well-known/oauth-protected-resource` was served, and the `WWW-Authenticate` challenge pointed there, which is off-spec for any non-root mount point. The bare path is still served as a compatibility alias, so this is not a breaking change; the `WWW-Authenticate` `resource_metadata` pointer now advertises the path-aware URL. Found by diffing our behaviour against `@modelcontextprotocol/server@2.0.0`, which implements the rule correctly.

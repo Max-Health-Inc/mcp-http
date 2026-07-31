@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "bun:test";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { handleMcpPostStateful } from "../src/transport.js";
 import { SessionStore } from "../src/session-store.js";
 
