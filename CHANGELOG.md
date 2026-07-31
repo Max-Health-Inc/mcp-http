@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CI** — `.github/dependabot.yml`, so CI actions and npm dependencies stay current without a manual sweep. Mirrors the org config in `Max-Health-Inc/armband` and `sleeptracker`, extended with the npm ecosystem and grouped so each ecosystem opens one PR a week rather than one per dependency. It targets `develop`, not `main`: merging to `main` publishes, so a routine bump landing there would cut a release. TypeScript major updates are ignored for now because `typescript-eslint` still caps `typescript` below `6.1.0`; a grouped PR would otherwise fail every week and block the other updates.
+
+### Changed
+
+- **CI** — Actions updated to current majors: `actions/setup-node` v4 → v7 (this was the Node 20 deprecation warning on every publish run) and `softprops/action-gh-release` v2 → v3 (a Node 20 → 24 runtime move, no API change). `actions/checkout` is already on v7 and `oven-sh/setup-bun@v2` is current. The Node used for npm publishing moves from 22 to 24, the current LTS, matching the node24 runtime the actions themselves now use.
+
 ### Fixed
 
 - **Release tooling** — `scripts/changelog-release.ts` now maintains the link-reference block when it stamps a version: `[Unreleased]` is repointed at the new tag and a `[<version>]` compare link is inserted beneath it. The 0.2.0 release exposed this gap, shipping with `[Unreleased]` still comparing from `v0.1.6` and no `[0.2.0]` link at all. The repository URL and previous tag are derived from the existing `[Unreleased]` line rather than hardcoded, so the script stays portable to the other repos using it. Changelogs that keep no link block are left untouched.
