@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-07-31
+
 ### Changed
 
 - **Breaking (dependency)** — the peer dependency moves from the retired monolithic `@modelcontextprotocol/sdk` (`>=1.29.0`) to `@modelcontextprotocol/server` (`^2.0.0`). The v2 SDK went stable on 2026-07-27. **No export was removed, renamed, or changed shape**, so the only consumer change is the dependency swap and updating `McpServer` imports to `@modelcontextprotocol/server`; `McpServer` and `WebStandardStreamableHTTPServerTransport` are API-compatible across the two majors. See "Migrating from 0.2.x" in the README. Consumers who cannot move yet should stay on the 0.2.x line.
@@ -166,7 +168,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.5...v0.1.6
