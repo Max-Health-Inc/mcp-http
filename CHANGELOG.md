@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release tooling** — `publish.yml` now resolves the npm dist-tag instead of always taking `latest`. `npm publish` moves `latest` to whatever it published most recently, by recency rather than version order, so publishing a backport would hand every new install the older line. The workflow compares the version being published against what `latest` currently points at and uses `legacy` when it is not the highest. Caught while shipping the 0.2.2 backport, which would otherwise have displaced 0.3.0 as `latest`. Verified across five cases including `0.10.0` vs `0.9.0`, which a string comparison gets wrong.
+
+### Added
+
+- **0.2.x line** — the RFC 9728 §3.1 path-aware metadata route is backported as [0.2.2](https://github.com/Max-Health-Inc/mcp-http/releases/tag/v0.2.2), published under the `legacy` dist-tag, for consumers who cannot yet move to the `@modelcontextprotocol/server` v2 peer that 0.3.0 requires. Install with `npm i @maxhealth.tech/mcp-http@legacy`.
+
 ## [0.3.0] — 2026-07-31
 
 ### Changed

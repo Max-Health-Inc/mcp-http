@@ -32,5 +32,27 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
+      # `npm publish` moves the `latest` dist-tag to whatever it just published,
+      # by recency and not by version order. Publishing a backport would
+      # therefore hand new installs the older line. Pick the tag by comparing
+      # against what `latest` currently points at.
+      - name: Resolve npm dist-tag
+        id: disttag
+        run: |
+          PACKAGE_NAME=$(jq -r .name package.json)
+          VERSION=$(jq -r .version package.json)
+          CURRENT=$(npm view "$PACKAGE_NAME" version 2>/dev/null || echo "0.0.0")
+
+          HIGHEST=$(printf '%s\n%s\n' "$CURRENT" "$VERSION" | sort -V | tail -1)
+          if [ "$VERSION" = "$CURRENT" ] || [ "$HIGHEST" = "$VERSION" ]; then
+            TAG=latest
+          else
+            TAG=legacy
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing $VERSION under dist-tag '$TAG' (latest is currently $CURRENT)"
+          echo "### Publishing ${PACKAGE_NAME}@${VERSION} as \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publish to npm (uses npx npm@latest for OIDC trusted publishing)
-        run: npx npm@latest publish --provenance --access public
+        run: npx npm@latest publish --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
