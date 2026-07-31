@@ -1,0 +1,7 @@
+# Normalize all text files to LF in the repository and in working copies.
+# Prettier enforces endOfLine: "lf"; without this, core.autocrlf=true on Windows
+# checks files out with CRLF and `bun run format:check` fails spuriously.
+* text=auto eol=lf
+
+# Lockfiles and generated output are text but should never be diffed by hand.
+bun.lock -diff linguist-generated

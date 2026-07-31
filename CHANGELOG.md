@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dependencies updated to latest in-range versions: `@modelcontextprotocol/sdk` 1.29.0 → 1.30.0, `@types/bun` 1.3.13 → 1.3.14, `eslint` 10.3.0 → 10.8.0, `hono` 4.12.18 → 4.12.33, `prettier` 3.8.3 → 3.9.6, `typescript-eslint` 8.59.2 → 8.65.0. Published `peerDependencies` ranges are unchanged (`@modelcontextprotocol/sdk >=1.29.0`, `hono >=4.12.0`) so consumers are not forced to upgrade.
+- `typescript` stays at 6.0.3. TypeScript 7.0.2 is available but `typescript-eslint@8.65.0` still declares a `typescript: >=4.8.4 <6.1.0` peer range, so the lint step cannot support it yet.
+
+### Fixed
+
+- Added `.gitattributes` with `* text=auto eol=lf`. Without it, `core.autocrlf=true` on Windows checks files out with CRLF while Prettier is configured with `endOfLine: "lf"`, making `bun run format:check` fail on files that had no actual content change.
+
+## [0.1.6] — 2026-05-31
+
+### Changed
+
+- **Breaking** — `PlatformCtx` and `McpHttpHandlerConfig` are now generic on `Env` (`PlatformCtx<Env = unknown>`, `McpHttpHandlerConfig<Env = unknown>`). `ctx.env` is typed as `Env` instead of `unknown`, and the type parameter is threaded through `createServer`, `createWorkerFetch<Env>` and `mcpPagesFunction<Env>`. Code relying on the `unknown` default is unaffected; code that explicitly annotated these types must add the parameter.
+
+### Fixed
+
+- `SessionStore` is now initialised lazily rather than at module scope, fixing the Cloudflare Workers "global scope" error thrown when a timer is created during module evaluation.
+
+## [0.1.5] — 2026-05-31
+
+### Added
+
+- `createWorkerFetch<Env>` accepts a generic type parameter so the Workers `env` binding is typed at the call site instead of falling back to `unknown`.
+
+## [0.1.4] — 2026-05-31
+
+### Added
+
+- Stateful session support for server-initiated RPC (e.g. `sampling/createMessage`). Adds the `SessionStore` class for TTL-managed persistent transport sessions, `handleMcpPostStateful()` for session-based request routing, and the `stateful` / `sessionTtlMs` options on `McpHttpHandlerConfig`. The existing stateless `handleMcpPost()` path is unchanged and remains the default.
+
+### Fixed
+
+- `authorizationServer` is now optional, so the handler can serve public endpoints that do not sit behind an OAuth Authorization Server.
+- `prepublishOnly` script corrected so the pre-publish gate actually runs.
+
 ## [0.1.3] — 2026-05-08
 
 ### Fixed
@@ -73,7 +109,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Max-Health-Inc/mcp-http/releases/tag/v0.1.0
