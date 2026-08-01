@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Docs** — the "Migrating from 0.2.x" guide claimed the v2 `McpServer` is API-compatible and "nothing else has to change". That holds for this package's own exports, but not the SDK: v2 removed the short-form `server.tool()` / `server.resource()` / `server.prompt()` aliases that v1 accepted, so a `createServer` using them fails to type-check after the swap. The guide now lists the `register*` renames (identical signatures). Surfaced by a downstream `0.1.6 → 0.3.0` bump that broke on `server.resource()`.
 - **Release tooling** — `publish.yml` now resolves the npm dist-tag instead of always taking `latest`. `npm publish` moves `latest` to whatever it published most recently, by recency rather than version order, so publishing a backport would hand every new install the older line. The workflow compares the version being published against what `latest` currently points at and uses `legacy` when it is not the highest. Caught while shipping the 0.2.2 backport, which would otherwise have displaced 0.3.0 as `latest`. Verified across five cases including `0.10.0` vs `0.9.0`, which a string comparison gets wrong.
 
 ### Added

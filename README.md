@@ -257,7 +257,15 @@ The bare path is **also** served, for every mount point, as a compatibility alia
 + import { McpServer } from "@modelcontextprotocol/server";
 ```
 
-The monolithic `@modelcontextprotocol/sdk` was retired in favour of focused packages; `@modelcontextprotocol/server` went stable at 2.0.0 on 2026-07-27. `McpServer` and `WebStandardStreamableHTTPServerTransport` are API-compatible across the two, which is why nothing else has to change.
+The monolithic `@modelcontextprotocol/sdk` was retired in favour of focused packages; `@modelcontextprotocol/server` went stable at 2.0.0 on 2026-07-27. This package's own exports are unchanged, but the v2 `McpServer` is **not** a full drop-in: it dropped the short-form registration methods that v1 still accepted. If your `createServer` uses them, rename to the `register*` forms — the signatures are identical:
+
+```diff
+- server.tool(...)      → server.registerTool(...)
+- server.resource(...)  → server.registerResource(...)
+- server.prompt(...)    → server.registerPrompt(...)
+```
+
+`WebStandardStreamableHTTPServerTransport` is API-compatible across the two.
 
 ### What the SDK now does better
 
