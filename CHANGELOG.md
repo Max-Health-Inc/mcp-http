@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-08-01
+
 ### Fixed
 
 - **Docs** — the "Migrating from 0.2.x" guide claimed the v2 `McpServer` is API-compatible and "nothing else has to change". That holds for this package's own exports, but not the SDK: v2 removed the short-form `server.tool()` / `server.resource()` / `server.prompt()` aliases that v1 accepted, so a `createServer` using them fails to type-check after the swap. The guide now lists the `register*` renames (identical signatures). Surfaced by a downstream `0.1.6 → 0.3.0` bump that broke on `server.resource()`.
@@ -177,7 +179,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.1.6...v0.2.0
