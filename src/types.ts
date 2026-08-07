@@ -84,6 +84,7 @@ export type McpRequestOutcome =
   | "preflight"
   | "well-known"
   | "unauthorized"
+  | "forbidden"
   | "token-expired"
   | "method-not-allowed"
   | "not-found"

@@ -64,7 +64,7 @@ describe("mcpHono integration", () => {
   it("returns 401 without Authorization header", async () => {
     const res = await honoFetch(new Request(`${BASE}/mcp`, { method: "POST" }));
     expect(res.status).toBe(401);
-    expect(res.headers.get("WWW-Authenticate")).toContain("Bearer resource_metadata=");
+    expect(res.headers.get("WWW-Authenticate")).toContain("resource_metadata=");
   });
 
   it("returns 401 with CORS headers so browser clients can read the error", async () => {

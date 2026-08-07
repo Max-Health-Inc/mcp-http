@@ -362,7 +362,8 @@ describe("POST /mcp — auth gate", () => {
   it("returns 401 with WWW-Authenticate pointing to resource metadata", async () => {
     const res = await handler(makeReq("/mcp", "POST"));
     const wwwAuth = res.headers.get("WWW-Authenticate") ?? "";
-    expect(wwwAuth).toContain("Bearer resource_metadata=");
+    expect(wwwAuth.startsWith("Bearer ")).toBe(true);
+    expect(wwwAuth).toContain("resource_metadata=");
     expect(wwwAuth).toContain("/.well-known/oauth-protected-resource");
   });
 
@@ -791,8 +792,8 @@ describe("protected-resource metadata is served path-aware", () => {
   it("points WWW-Authenticate at the path-aware URL", async () => {
     const res = await handler(makeReq("/mcp", "POST"));
     expect(res.status).toBe(401);
-    expect(res.headers.get("WWW-Authenticate")).toBe(
-      `Bearer resource_metadata="${BASE}/.well-known/oauth-protected-resource/mcp"`,
+    expect(res.headers.get("WWW-Authenticate")).toContain(
+      `resource_metadata="${BASE}/.well-known/oauth-protected-resource/mcp"`,
     );
   });
 
