@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CORS: `Mcp-Session-Id` and `Last-Event-ID` are back in the allow-list**, reverting a regression shipped in 0.4.0. They were removed on the reasoning that the 2026-07-28 revision no longer defines them. Checking the normative text rather than the SDK shows that is the wrong conclusion: the backward-compatibility section says a server on this revision receiving 2025-era traffic should _ignore_ both headers, not refuse them. Omitting a header from `Access-Control-Allow-Headers` is a refusal — a browser sending it fails preflight and never issues the request — so 0.4.0 broke exactly the browser-hosted legacy clients that `legacy: 'stateless'` exists to serve. Non-browser clients were unaffected, CORS being a browser mechanism. Only the exposed-header default remains changed, which is correct now that sessions are gone.
+
 ## [0.4.0] — 2026-08-07
 
 ### Changed
@@ -22,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **Breaking** — `handleMcpPostStateful`, `SessionStore`, and the `stateful` / `sessionTtlMs` options, all deprecated in 0.3.0 and scheduled for this release. Sessions do not exist in 2026-07-28 and server-initiated sampling is replaced by in-result input requests, so there is no replacement to migrate to. Nothing in the known consumer set (`dicom-viewer`, `drypdf`, `legal-web`) used them.
-- **Breaking** — `Mcp-Session-Id` from the default CORS **exposed** headers. With no default exposed headers left, `Access-Control-Expose-Headers` is omitted rather than emitted empty. Both `Mcp-Session-Id` and `Last-Event-ID` remain in the **allow** list: the revision tells a server receiving them to ignore them, and this package still serves that traffic (`legacy: 'stateless'`). Dropping them from the allow-list would instead fail CORS preflight, so a browser-hosted legacy client could never send the request at all. They go when legacy serving does.
+- **Breaking** — `Mcp-Session-Id` and `Last-Event-ID` from the default CORS allow-list, and `Mcp-Session-Id` from the exposed headers. With no default exposed headers left, `Access-Control-Expose-Headers` is omitted rather than emitted empty. **The allow-list removal was a regression, reverted in 0.4.1 — see below.**
 - The `@modelcontextprotocol/sdk` v1 devDependency, dead since the 0.3.0 peer swap and imported nowhere.
 
 ## [0.3.2] — 2026-08-07
