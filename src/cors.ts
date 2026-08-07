@@ -2,12 +2,8 @@ import type { CorsOptions } from "./types.js";
 import { allowedMethodsFor, allowMethodsValue } from "./routes.js";
 
 /**
- * MCP-required request headers (per the MCP HTTP transport spec).
- * Clients must be able to send all of these.
- *
- * `MCP-Protocol-Version` has been required on every MCP HTTP request since
- * protocol version 2025-06-18 and is not CORS-safelisted, so omitting it makes
- * every browser-hosted client fail preflight.
+ * MCP-required request headers. None are CORS-safelisted, so omitting any of
+ * them fails preflight for every browser-hosted client.
  */
 const MCP_ALLOW_HEADERS = [
   "Content-Type",
@@ -16,18 +12,13 @@ const MCP_ALLOW_HEADERS = [
   // Required POST headers as of 2026-07-28. Request headers, so not exposed.
   "Mcp-Method",
   "Mcp-Name",
-  // 2025-era. The revision tells a server receiving these to IGNORE them, and we
-  // still serve that traffic (`legacy: 'stateless'`). Dropping them from the
-  // allow-list would instead fail preflight, so a browser-hosted legacy client
-  // could never send the request at all. They go when legacy serving does.
+  // 2025-era: the spec says ignore, not reject. Omitting them fails preflight,
+  // which would block the legacy clients we still serve.
   "Mcp-Session-Id",
   "Last-Event-ID",
 ] as const;
 
-/**
- * MCP response headers exposed to browser clients. Empty since sessions were
- * removed: nothing the transport returns needs reading from script.
- */
+/** Exposed response headers. Empty since sessions were removed. */
 const MCP_EXPOSE_HEADERS: readonly string[] = [];
 
 /**

@@ -5,10 +5,7 @@ import { mcpHono } from "../hono/index.js";
 import { createMcpHttpHandler } from "../src/index.js";
 import { handleMcpPost } from "../src/transport.js";
 
-/**
- * Contracts 0.4.0 changed that line coverage does not pin: the Hono context
- * threading and the deferred close on a streaming response.
- */
+/** Contracts 0.4.0 changed that line coverage does not pin. */
 
 function makeServer(): McpServer {
   const server = new McpServer({ name: "regression", version: "0.0.1" });
@@ -84,8 +81,7 @@ describe("mcpHono — platform context", () => {
   });
 
   it("keeps per-request context isolated across concurrent requests", async () => {
-    // The handler is shared from 0.4.0 onward, so context must ride the call
-    // rather than the closure. Interleave requests carrying distinct envs.
+    // The handler is shared now, so context must ride the call, not the closure.
     const seen: Array<{ token: string | null; env: string }> = [];
 
     const app = new Hono<{ Bindings: { TENANT: string } }>();
@@ -93,7 +89,7 @@ describe("mcpHono — platform context", () => {
       "/",
       mcpHono<{ Bindings: { TENANT: string } }>({
         createServer: async (token, ctx) => {
-          // Yield so the two requests genuinely overlap.
+          // Yield so the requests overlap.
           await new Promise((r) => setTimeout(r, 10));
           seen.push({ token, env: (ctx.env as { TENANT: string }).TENANT });
           return makeServer();
@@ -120,14 +116,12 @@ describe("mcpHono — platform context", () => {
     const beta = seen.find((s) => s.env === "beta");
     expect(alpha).toBeDefined();
     expect(beta).toBeDefined();
-    // Each server must have been built with its own request's env.
     expect(alpha?.env).toBe("alpha");
     expect(beta?.env).toBe("beta");
   });
 
   it("reuses one handler across requests rather than rebuilding per request", async () => {
-    // The AS-metadata cache lives in the handler closure, so a rebuilt handler
-    // re-fetches discovery every request. Count fetches to prove it is cached.
+    // A rebuilt handler would re-fetch discovery every request.
     let discoveryHits = 0;
     const realFetch = globalThis.fetch;
     globalThis.fetch = ((url: string | URL | Request) => {
@@ -193,7 +187,7 @@ describe("createMcpHttpHandler — layer survives delegation", () => {
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
       "https://app.example.com",
     );
-    // The body is re-wrapped to attach headers; it must still arrive intact.
+    // Re-wrapped to attach headers; must still arrive intact.
     expect(await res.text()).toContain("pong");
   });
 
@@ -237,8 +231,7 @@ describe("handleMcpPost — streaming response lifecycle", () => {
     });
 
     const text = await res.text();
-    // Whichever framing the SDK picks, the payload must arrive intact — a close
-    // fired before the stream drains would truncate this.
+    // A close fired before the stream drains would truncate this.
     expect(text).toContain("pong");
   });
 
@@ -259,8 +252,7 @@ describe("handleMcpPost — streaming response lifecycle", () => {
         }),
       });
 
-      // Cancelling rejects the pipe. `.finally()` re-raises it, so without an
-      // explicit catch this fires on every disconnected client.
+      // Without an explicit catch this fires on every disconnected client.
       if (res.body !== null) await res.body.cancel();
       await new Promise((resolve) => setTimeout(resolve, 100));
 

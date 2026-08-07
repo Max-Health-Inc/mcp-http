@@ -2,12 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { McpServer } from "@modelcontextprotocol/server";
 import { handleMcpPost } from "../src/transport.js";
 
-/**
- * The point of delegating to `createMcpHandler`: this package gets the
- * 2026-07-28 revision without owning any of it. These assert the behaviour that
- * the previous 2025-era transport could not produce, so they fail if the
- * delegation is ever unwound.
- */
+/** Behaviour the 2025-era transport could not produce; fails if delegation is unwound. */
 
 function makeServer(): McpServer {
   const server = new McpServer({ name: "protocol-test", version: "0.0.1" });
@@ -55,7 +50,7 @@ describe("2026-07-28 protocol", () => {
       result: { content: Array<{ text: string }>; resultType: string };
     };
     expect(body.result.content[0]?.text).toBe("pong");
-    // `resultType` is required by this revision and absent from 2025-era replies.
+    // Required by this revision, absent from 2025-era replies.
     expect(body.result.resultType).toBe("complete");
   });
 
@@ -79,7 +74,7 @@ describe("2026-07-28 protocol", () => {
   });
 
   it("still serves 2025-era traffic (legacy defaults to 'stateless')", async () => {
-    // No envelope, no modern headers — classified legacy and answered, not refused.
+    // No envelope: classified legacy and answered, not refused.
     const res = await handleMcpPost({
       createServer: makeServer,
       req: new Request("https://api.example.com/mcp", {
