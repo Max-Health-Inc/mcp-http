@@ -54,6 +54,20 @@ describe("2026-07-28 protocol", () => {
     expect(body.result.resultType).toBe("complete");
   });
 
+  it("answers server/discover with the supported versions and capabilities", async () => {
+    const res = await post(
+      { "Mcp-Method": "server/discover" },
+      { jsonrpc: "2.0", id: 4, method: "server/discover", params: { _meta: META } },
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      result: { supportedVersions: string[]; capabilities: Record<string, unknown> };
+    };
+    expect(body.result.supportedVersions).toContain("2026-07-28");
+    expect(body.result.capabilities).toHaveProperty("tools");
+  });
+
   it("rejects a header/body method mismatch with -32020 HeaderMismatch", async () => {
     const res = await post(
       { "Mcp-Method": "tools/list", "Mcp-Name": "ping" },
