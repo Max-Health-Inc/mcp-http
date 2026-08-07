@@ -60,25 +60,30 @@ export type McpHonoConfig<E extends Env = Env> = Omit<
  *
  * The returned `Hono` instance should be mounted with `app.route('/', ...)`.
  *
- * A new core handler is created per-request so that the Hono `Context` (`c`)
- * can be closed over and surfaced to `createServer` without polluting the
- * runtime-agnostic core types.
+ * The core handler is built once. It used to be rebuilt per request so the Hono
+ * `Context` could be closed over, which silently defeated the handler's
+ * authorization-server metadata cache: that cache lives in the handler's
+ * closure, so a fresh handler per request re-fetched the AS document every time
+ * instead of once per TTL. The context is threaded per request through
+ * `PlatformCtx` instead, which is what it is for.
  */
 export function mcpHono<E extends Env = Env>(config: McpHonoConfig<E>): Hono<E> {
   const app = new Hono<E>();
 
+  const handler = createMcpHttpHandler({
+    ...config,
+    // The `c` narrowing is sound by construction: the only caller of this
+    // handler is the route below, which always supplies it.
+    createServer: (token: string | null, ctx: PlatformCtx) =>
+      config.createServer(token, ctx as HonoPlatformCtx<E>),
+  });
+
   app.all("*", (c: Context<E>) => {
-    // Build a single-use handler that captures `c` in its closure.
-    const handler = createMcpHttpHandler({
-      ...config,
-      createServer: (token: string | null, ctx: PlatformCtx) =>
-        config.createServer(token, { ...ctx, env: c.env, c }),
-    });
-
-    const platformCtx: Omit<PlatformCtx, "request"> = {
-      env: c.env,
-    };
-
+    // Typed on the variable rather than at the call site, so the extra `c` is
+    // carried without an assertion.
+    const platformCtx: Omit<PlatformCtx<E["Bindings"]>, "request"> & {
+      c: Context<E>;
+    } = { env: c.env, c };
     return handler(c.req.raw, platformCtx);
   });
 

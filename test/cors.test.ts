@@ -44,8 +44,15 @@ describe("applyCors — origin: '*' (default)", () => {
     const allowed = headers.get("Access-Control-Allow-Headers") ?? "";
     expect(allowed).toContain("Content-Type");
     expect(allowed).toContain("Authorization");
-    expect(allowed).toContain("Mcp-Session-Id");
-    expect(allowed).toContain("Last-Event-ID");
+    expect(allowed).toContain("MCP-Protocol-Version");
+  });
+
+  it("no longer advertises the 2025-era session headers", () => {
+    const headers = new Headers();
+    applyCors(headers, makeReq(), {});
+    const allowed = headers.get("Access-Control-Allow-Headers") ?? "";
+    expect(allowed).not.toContain("Mcp-Session-Id");
+    expect(allowed).not.toContain("Last-Event-ID");
   });
 
   it("allows the 2026-07-28 required POST headers", () => {
@@ -72,11 +79,12 @@ describe("applyCors — origin: '*' (default)", () => {
     expect(allowed).toContain("Authorization");
   });
 
-  it("exposes Mcp-Session-Id by default", () => {
+  it("omits Access-Control-Expose-Headers when nothing needs exposing", () => {
+    // Sessions were the only default; with them gone the header is dropped
+    // entirely rather than emitted empty.
     const headers = new Headers();
     applyCors(headers, makeReq(), {});
-    const exposed = headers.get("Access-Control-Expose-Headers") ?? "";
-    expect(exposed).toContain("Mcp-Session-Id");
+    expect(headers.get("Access-Control-Expose-Headers")).toBeNull();
   });
 
   it("merges extra exposeHeaders", () => {
@@ -84,7 +92,6 @@ describe("applyCors — origin: '*' (default)", () => {
     applyCors(headers, makeReq(), { exposeHeaders: ["X-Rate-Limit"] });
     const exposed = headers.get("Access-Control-Expose-Headers") ?? "";
     expect(exposed).toContain("X-Rate-Limit");
-    expect(exposed).toContain("Mcp-Session-Id");
   });
 });
 

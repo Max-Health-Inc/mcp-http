@@ -1,48 +1,23 @@
-import {
-  WebStandardStreamableHTTPServerTransport,
-  type McpServer,
-} from "@modelcontextprotocol/server";
+import { createMcpHandler, type McpServer } from "@modelcontextprotocol/server";
 import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
-import type { SessionStore } from "./session-store.js";
 
 /**
- * MCP `Accept` header values for the Streamable HTTP transport.
- * Clients that only speak SSE (older Claude Desktop) send `text/event-stream`
- * without `application/json`. We normalise the header so the transport always
- * sees both and can pick the right response format.
+ * Drive the MCP protocol for a single POST request.
+ *
+ * Protocol semantics belong to `createMcpHandler`: the 2026-07-28 revision,
+ * `server/discover`, the `_meta` envelope, MRTR, and the inbound validation
+ * ladder that emits `-32020` `HeaderMismatch`. This function owns only what
+ * wraps them — the per-request server factory and the `onError` override.
+ *
+ * `legacy` is left at its default `'stateless'`, so 2025-era clients keep being
+ * served (one fresh instance per request, no sessions) instead of being turned
+ * away. GET and DELETE are answered `405` by the handler, matching the `Allow`
+ * header the router already returns.
  */
-const MCP_ACCEPT = "application/json, text/event-stream";
-
-/** Header name the SDK uses to track sessions. */
-const SESSION_ID_HEADER = "mcp-session-id";
-
-/**
- * Ensure the `Accept` header contains both content types required by the MCP
- * Streamable HTTP transport spec. Mutates the provided `Headers` clone.
- */
-function normalizeAcceptHeader(headers: Headers): Headers {
-  const accept = headers.get("Accept") ?? "";
-  const hasJson = accept.includes("application/json");
-  const hasSse = accept.includes("text/event-stream");
-
-  if (!hasJson || !hasSse) {
-    headers.set("Accept", MCP_ACCEPT);
-  }
-  return headers;
-}
-
-/**
- * Clone a `Request` with the `Accept` header normalised for MCP.
- * We must clone because `Request` headers are immutable.
- */
-function withNormalizedAccept(req: Request): Request {
-  const headers = new Headers(req.headers);
-  normalizeAcceptHeader(headers);
-  return new Request(req, { headers });
-}
 
 export interface HandleMcpPostOptions {
-  server: McpServer;
+  /** Per-request factory. Called once per serving unit, per era. */
+  createServer: () => McpServer | Promise<McpServer>;
   req: Request;
   onError?: (
     err: unknown,
@@ -50,74 +25,22 @@ export interface HandleMcpPostOptions {
   ) => Response | undefined | Promise<Response | undefined>;
 }
 
-/**
- * Drive the full MCP transport lifecycle for a single POST request (STATELESS).
- *
- * 1. Instantiate a stateless `WebStandardStreamableHTTPServerTransport`
- * 2. Connect the `McpServer` to it
- * 3. Delegate to `transport.handleRequest(req)`
- * 4. Close the server when the response body has been fully consumed
- *    (deferred for SSE streams; immediate for JSON responses)
- *
- * Returns the `Response` produced by the transport. On unhandled errors
- * the `onError` hook is called; if it returns a `Response` that is used,
- * otherwise a JSON-RPC 500 body is returned.
- *
- * NOTE: This mode does NOT support server-initiated RPC like `createMessage`.
- * Use `handleMcpPostStateful` for sampling/createMessage support.
- */
-/**
- * **Not deprecated, but consider `createMcpHandler` instead.**
- *
- * `createMcpHandler` from `@modelcontextprotocol/server` additionally serves the
- * 2026-07-28 protocol revision and its `-32020 HeaderMismatch` validation, so
- * prefer it for new code that does not need the hook below.
- *
- * It is **not** a drop-in replacement, and this function is deliberately kept:
- *
- * - `createMcpHandler` cannot reproduce the `onError` contract. Its `onerror`
- *   option is reporting-only and, per the SDK's own documentation, "never alters
- *   the response" — whereas `onError` here may return a `Response` to override
- *   the reply.
- * - `createMcpHttpHandler`, this package's primary entry point, is built on this
- *   function. Removing it would mean removing `onError` from the main API.
- *
- * That is why the transport is driven directly here rather than delegated.
- *
- * @see {@link https://www.npmjs.com/package/@modelcontextprotocol/server | @modelcontextprotocol/server}
- */
 export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Response> {
-  const { server, req, onError } = options;
+  const { createServer, req, onError } = options;
 
-  // Stateless mode: omit sessionIdGenerator entirely (passing `undefined`
-  // explicitly is rejected by exactOptionalPropertyTypes).
-  const transport = new WebStandardStreamableHTTPServerTransport();
+  // Errors the SDK reports out-of-band (`onerror` is reporting-only and never
+  // alters the response) are captured here so a failure that never throws can
+  // still reach `onError` with a chance to override the reply. Held on an object
+  // because a plain `let` assigned only inside the callback narrows to `null`.
+  const reported: { err: Error | null } = { err: null };
 
-  try {
-    await server.connect(transport);
-    const normalizedReq = withNormalizedAccept(req);
-    const res = await transport.handleRequest(normalizedReq);
+  const handler = createMcpHandler(async () => createServer(), {
+    onerror: (err: Error) => {
+      reported.err ??= err;
+    },
+  });
 
-    // SSE responses have a live ReadableStream body — the SDK writes
-    // responses asynchronously via transport.send(). Calling server.close()
-    // immediately would kill the stream before the client receives data.
-    // Defer cleanup until the stream completes or is cancelled.
-    if (res.body instanceof ReadableStream) {
-      const original = res.body as ReadableStream<Uint8Array>;
-      const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
-      void original.pipeTo(writable).finally(() => void server.close());
-      return new Response(readable, {
-        status: res.status,
-        statusText: res.statusText,
-        headers: res.headers,
-      });
-    }
-
-    // Non-streaming (JSON) responses are complete — safe to close now.
-    await server.close();
-    return res;
-  } catch (err: unknown) {
-    await server.close();
+  const fail = async (err: unknown): Promise<Response> => {
     if (onError) {
       try {
         const override = await onError(err, req);
@@ -128,107 +51,49 @@ export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Resp
     } else {
       console.error("[mcp-http] Unhandled transport error", err);
     }
-
     return toJsonRpcErrorResponse(
       500,
       JSON_RPC_ERROR_CODES.INTERNAL_ERROR,
       "Internal server error",
     );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Stateful (session-based) transport — supports server→client RPC
-// ---------------------------------------------------------------------------
-
-export interface HandleMcpStatefulOptions {
-  /** Factory to create a new McpServer instance for a new session. */
-  createServer: () => McpServer | Promise<McpServer>;
-  /** The inbound request. */
-  req: Request;
-  /** Session store (shared across requests). */
-  sessionStore: SessionStore;
-  /** Error handler. */
-  onError?: (
-    err: unknown,
-    req: Request,
-  ) => Response | undefined | Promise<Response | undefined>;
-}
-
-/**
- * Handle an MCP POST request with session support.
- *
- * - If the request carries a `Mcp-Session-Id` header, route to the existing
- *   session's transport.
- * - If this is an `initialize` request (no session ID), create a new session
- *   with a fresh transport + server, register it in the store.
- *
- * This enables server-initiated RPC (sampling/createMessage) because the
- * transport persists across requests.
- */
-/**
- * @deprecated Session-based serving is a 2025-era mechanism. The 2026-07-28
- * revision removes `Mcp-Session-Id` and replaces server-initiated sampling with
- * in-result input requests, so this path has no long-term future. Prefer
- * `createMcpHandler` from `@modelcontextprotocol/server`. Scheduled for removal
- * in 0.4.0.
- * @see {@link https://www.npmjs.com/package/@modelcontextprotocol/server | @modelcontextprotocol/server}
- */
-export async function handleMcpPostStateful(
-  options: HandleMcpStatefulOptions,
-): Promise<Response> {
-  const { createServer, req, sessionStore, onError } = options;
-  const sessionId = req.headers.get(SESSION_ID_HEADER);
+  };
 
   try {
-    // ── Existing session: route to stored transport ──────────────────────
-    if (sessionId) {
-      const entry = sessionStore.get(sessionId);
-      if (!entry) {
-        // Session expired or unknown — client must re-initialize
-        return new Response(JSON.stringify({ error: "Session not found" }), {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
+    const res = await handler.fetch(req);
 
-      const normalizedReq = withNormalizedAccept(req);
-      return await entry.transport.handleRequest(normalizedReq);
+    // A reported error with a non-error status means the SDK answered normally
+    // while something failed out-of-band; leave that response alone. Only give
+    // `onError` the chance to override when the reply is itself a failure.
+    if (reported.err !== null && res.status >= 500) {
+      await handler.close();
+      return await fail(reported.err);
     }
 
-    // ── New session: create transport + server ───────────────────────────
-    const server = await createServer();
-    const transport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-      onsessioninitialized: (id: string) => {
-        sessionStore.set(id, {
-          transport,
-          server,
-          createdAt: Date.now(),
-          lastAccessedAt: Date.now(),
+    // The body is still being written when `fetch` resolves, so closing now
+    // would cut it. Defer until it drains or is cancelled.
+    if (res.body instanceof ReadableStream) {
+      const original = res.body as ReadableStream<Uint8Array>;
+      const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+      // A client disconnecting mid-response rejects the pipe, and `.finally()`
+      // re-raises it. Left unhandled that fires on every cancelled request —
+      // routine traffic, not an error — so swallow both it and any close error.
+      void original
+        .pipeTo(writable)
+        .catch(() => undefined)
+        .finally(() => {
+          void handler.close().catch(() => undefined);
         });
-      },
-    });
+      return new Response(readable, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+      });
+    }
 
-    await server.connect(transport);
-    const normalizedReq = withNormalizedAccept(req);
-    return await transport.handleRequest(normalizedReq);
+    await handler.close();
+    return res;
   } catch (err: unknown) {
-    if (onError) {
-      try {
-        const override = await onError(err, req);
-        if (override instanceof Response) return override;
-      } catch {
-        // Swallow hook errors
-      }
-    } else {
-      console.error("[mcp-http] Unhandled stateful transport error", err);
-    }
-
-    return toJsonRpcErrorResponse(
-      500,
-      JSON_RPC_ERROR_CODES.INTERNAL_ERROR,
-      "Internal server error",
-    );
+    await handler.close();
+    return await fail(err);
   }
 }

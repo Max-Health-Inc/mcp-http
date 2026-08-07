@@ -6,7 +6,7 @@ import type {
 } from "./types.js";
 import { applyCors, handlePreflight } from "./cors.js";
 import { extractBearer, isJwtExpired } from "./jwt.js";
-import { handleMcpPost, handleMcpPostStateful } from "./transport.js";
+import { handleMcpPost } from "./transport.js";
 import type { HandleMcpPostOptions } from "./transport.js";
 import {
   PROTECTED_RESOURCE_PATH,
@@ -15,8 +15,6 @@ import {
   protectedResourceResponse,
   authorizationServerResponse,
 } from "./well-known.js";
-import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
-import { SessionStore } from "./session-store.js";
 import { DEFAULT_MCP_PATH, allowedMethodsFor, allowMethodsValue } from "./routes.js";
 
 /** How long a successfully discovered AS metadata document is cached (ms). */
@@ -82,22 +80,12 @@ export function buildHandler<Env = unknown>(
   // RFC 9728 §3.1 path-aware metadata route derived from the mount point.
   const prmPath = protectedResourcePath(mcpPath);
   const earlyReject = config.earlyRejectExpiredTokens !== false;
-  const stateful = config.stateful === true;
   // Normalize: strip trailing slash so URLs like "https://auth.example.com/" don't
   // produce double slashes in discovery URLs or leak into authorization_servers.
   // null when authorizationServer is not configured (public endpoint).
   const authorizationServer = config.authorizationServer
     ? config.authorizationServer.replace(/\/+$/, "")
     : null;
-
-  // Session store for stateful mode — lazily initialized on first request
-  // to avoid triggering `setInterval` in global scope (Cloudflare Workers
-  // disallow async I/O and timers at the module level).
-  let sessionStore: SessionStore | null = null;
-  const getSessionStore = (): SessionStore => {
-    sessionStore ??= new SessionStore({ ttlMs: config.sessionTtlMs });
-    return sessionStore;
-  };
 
   // ------------------------------------------------------------------
   // Authorization Server metadata — static or auto-discovered
@@ -280,45 +268,13 @@ export function buildHandler<Env = unknown>(
 
       const ctx: PlatformCtx<Env> = { request: req, ...platformCtx } as PlatformCtx<Env>;
 
-      // ── Stateful mode: use session store for persistent transports ──
-      if (stateful) {
-        const statefulOpts: Parameters<typeof handleMcpPostStateful>[0] = {
-          createServer: () => config.createServer(token, ctx),
-          req,
-          sessionStore: getSessionStore(),
-        };
-        if (config.onError !== undefined) {
-          statefulOpts.onError = config.onError;
-        }
-        return respond(handleMcpPostStateful(statefulOpts), "ok");
-      }
-
-      // ── Stateless mode (default): one-shot transport per request ──
-      let server;
-      try {
-        server = await config.createServer(token, ctx);
-      } catch (err: unknown) {
-        if (config.onError) {
-          try {
-            const override = await config.onError(err, req);
-            if (override instanceof Response) {
-              return await respond(override, "error");
-            }
-          } catch {
-            // Swallow hook errors
-          }
-        }
-        return respond(
-          toJsonRpcErrorResponse(
-            500,
-            JSON_RPC_ERROR_CODES.INTERNAL_ERROR,
-            "Failed to initialise MCP server",
-          ),
-          "error",
-        );
-      }
-
-      const mcpOpts: HandleMcpPostOptions = { server, req };
+      // The factory is handed to the SDK rather than invoked here: it calls it
+      // once per serving unit, per era. A throw from it surfaces through
+      // `handleMcpPost`, which routes it to `onError` like any other failure.
+      const mcpOpts: HandleMcpPostOptions = {
+        createServer: () => config.createServer(token, ctx),
+        req,
+      };
       if (config.onError !== undefined) {
         mcpOpts.onError = config.onError;
       }

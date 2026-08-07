@@ -6,7 +6,7 @@ Built on the **Web Fetch API** — runs on Cloudflare Workers, Pages Functions, 
 
 ## Features
 
-- **Stateless MCP transport** — one `WebStandardStreamableHTTPServerTransport` per POST, no session state required
+- **2026-07-28 protocol via the SDK** — delegates to `createMcpHandler`, so `server/discover`, MRTR, `resultType` and `-32020 HeaderMismatch` come from upstream; 2025-era clients are still served statelessly
 - **RFC 9728** protected-resource metadata served automatically, at the path-aware route (`/.well-known/oauth-protected-resource/mcp` for an endpoint mounted at `/mcp`)
 - **RFC 8414** `/.well-known/oauth-authorization-server` (optional)
 - **Bearer extraction + 401 gate** with `WWW-Authenticate` resource-metadata pointer
@@ -148,7 +148,7 @@ createMcpHttpHandler({
 });
 ```
 
-The default CORS config allows `*` origins and admits the MCP-required request headers (`Content-Type`, `Authorization`, `MCP-Protocol-Version`, `Mcp-Session-Id`, `Last-Event-ID`).
+The default CORS config allows `*` origins and admits the MCP-required request headers (`Content-Type`, `Authorization`, `MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`).
 
 Per-tool `Mcp-Param-*` headers (SEP-2243) are admitted dynamically: any such header a client lists in its preflight `Access-Control-Request-Headers` is echoed back in `Access-Control-Allow-Headers`. Header names outside that prefix are never reflected, so you still declare your own via `allowHeaders`.
 
@@ -267,17 +267,23 @@ The monolithic `@modelcontextprotocol/sdk` was retired in favour of focused pack
 
 `WebStandardStreamableHTTPServerTransport` is API-compatible across the two.
 
-### What the SDK now does better
+### Who owns what, as of 0.4.0
 
-Several things this package used to own are available directly from the SDK, usually with more capability. Where that is true the wrapper here is marked `@deprecated` and will be removed in 0.4.0. Your editor will point you at the replacement.
+Protocol semantics belong to the SDK. `handleMcpPost` delegates to `createMcpHandler`, so the 2026-07-28 revision, `server/discover`, the `_meta` envelope, MRTR, `resultType`, and the inbound validation ladder that emits `-32020 HeaderMismatch` all come from there rather than being reimplemented here.
 
-| Deprecated here                         | Use instead                           | Why                                                                                                         |
-| --------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `handleMcpPost`                         | `createMcpHandler`                    | Also serves the 2026-07-28 revision, its `resultType` discriminator, and `-32020 HeaderMismatch` validation |
-| `handleMcpPostStateful`, `SessionStore` | `createMcpHandler`                    | Sessions are removed in 2026-07-28; this path is 2025-era only                                              |
-| `buildProtectedResourceMetadata`        | `buildOAuthProtectedResourceMetadata` | Takes your real RFC 8414 document rather than a bare issuer URL                                             |
+`legacy` is left at its default `'stateless'`, so 2025-era clients are still served — one fresh instance per request, no sessions — instead of being turned away.
 
-**One incompatibility worth knowing before you migrate off `handleMcpPost`.** `createMcpHandler`'s `onerror` option is reporting-only and, per the SDK's documentation, "never alters the response". `onError` here may return a `Response` to override the reply. If you depend on that, keep using `handleMcpPost` for now — that same incompatibility is why this package still drives the transport itself instead of delegating.
+Removed in 0.4.0, with nothing to migrate to because the protocol no longer has them:
+
+| Removed                                        | Why                                                                               |
+| ---------------------------------------------- | --------------------------------------------------------------------------------- |
+| `handleMcpPostStateful`, `SessionStore`        | Sessions are gone in 2026-07-28; sampling is replaced by in-result input requests |
+| `stateful`, `sessionTtlMs` config              | Selected the session path                                                         |
+| `Mcp-Session-Id`, `Last-Event-ID` CORS entries | Named headers the revision no longer defines                                      |
+
+`handleMcpPost` keeps its name and its `onError` contract. Its options changed shape: it now takes a `createServer` factory rather than a constructed `server`, because the SDK builds one instance per serving unit, per era.
+
+**Why `onError` still exists.** `createMcpHandler`'s `onerror` is reporting-only and, per the SDK's documentation, "never alters the response". `onError` here may still return a `Response` to override the reply: the delegation captures out-of-band reports and routes them, plus anything thrown, through the same hook. That is the one piece of behaviour the SDK cannot express, and the reason this wrapper exists at all rather than consumers calling `createMcpHandler` directly.
 
 ### What this package still owns
 
