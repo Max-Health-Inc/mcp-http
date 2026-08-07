@@ -13,6 +13,10 @@ const MCP_ALLOW_HEADERS = [
   "Content-Type",
   "Authorization",
   "MCP-Protocol-Version",
+  // Required POST headers as of 2026-07-28. Request headers, so not exposed.
+  "Mcp-Method",
+  "Mcp-Name",
+  // 2025-era; go with the session path.
   "Mcp-Session-Id",
   "Last-Event-ID",
 ] as const;

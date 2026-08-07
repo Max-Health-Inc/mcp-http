@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CORS** — `Mcp-Method` and `Mcp-Name` are required request headers on the 2026-07-28 revision and were absent from `Access-Control-Allow-Headers`, so a browser-hosted client on that revision failed preflight before its POST was ever sent. They are request headers, so they belong in the allow list; [#6](https://github.com/Max-Health-Inc/mcp-http/issues/6) originally proposed `Access-Control-Expose-Headers`, which is the wrong list. `Mcp-Session-Id` and `Last-Event-ID` stay for now because this package still drives the sessionful transport, and go when that path does.
+- **JWT** — the payload segment was decoded with `atob` alone, which yields latin1, one character per byte. Beyond returning mojibake for any multi-byte claim, this accepted tokens it should have rejected: a payload that is invalid UTF-8 can still parse as well-formed JSON when misread as latin1, so `exp` was read from a token the decoder had no business trusting. Decoding now goes through `TextDecoder("utf-8", { fatal: true })`. No dependency added, so the package stays dependency-free; the regression test builds a payload that is invalid UTF-8 yet valid JSON in latin1 and fails against the old implementation. Partially addresses [#15](https://github.com/Max-Health-Inc/mcp-http/issues/15), whose `validateJwtAccessToken` proposal remains open as a separate design decision, since this package deliberately delegates signature verification upstream.
+
+### Notes
+
+- [#6](https://github.com/Max-Health-Inc/mcp-http/issues/6)'s remaining `-32020` `HeaderMismatch` item is reassigned to [#8](https://github.com/Max-Health-Inc/mcp-http/issues/8). Verified against `@modelcontextprotocol/server` 2.0.0: the inbound validation ladder that emits it — header/body cross-checks plus SEP-2243 `Mcp-Param-*` validation against each tool's `x-mcp-header` declarations, with base64 sender-encoding and numeric canonicalisation — exists only on the `createMcpHandler` path. It arrives by delegating in 0.4.0 rather than by being reimplemented here. #6's 405 item was already fixed and is closed.
+
 ## [0.3.1] — 2026-08-01
 
 ### Fixed
