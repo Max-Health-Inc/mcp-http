@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-08-07
+
 ### Fixed
 
 - **CORS** — `Mcp-Method` and `Mcp-Name` are required request headers on the 2026-07-28 revision and were absent from `Access-Control-Allow-Headers`, so a browser-hosted client on that revision failed preflight before its POST was ever sent. They are request headers, so they belong in the allow list; [#6](https://github.com/Max-Health-Inc/mcp-http/issues/6) originally proposed `Access-Control-Expose-Headers`, which is the wrong list. `Mcp-Session-Id` and `Last-Event-ID` stay for now because this package still drives the sessionful transport, and go when that path does.
@@ -188,7 +190,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.0...v0.2.1
