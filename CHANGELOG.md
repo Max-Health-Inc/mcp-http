@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking — the modern protocol path is delegated to `createMcpHandler`.** 0.3.0 swapped the peer dependency to `@modelcontextprotocol/server` v2 but kept driving `WebStandardStreamableHTTPServerTransport`, which is the 2025-era transport: sessions, `Mcp-Session-Id`, and validation limited to `mcp-protocol-version` against a version list. The endpoint therefore never served 2026-07-28. It does now, and gets `server/discover`, the `_meta` envelope, MRTR, `resultType` and the inbound validation ladder that emits `-32020` `HeaderMismatch` from the SDK rather than from code here. `legacy` is left at its default `'stateless'`, so 2025-era clients continue to be served, one fresh instance per request. This closes [#8](https://github.com/Max-Health-Inc/mcp-http/issues/8) and the `-32020` item from [#6](https://github.com/Max-Health-Inc/mcp-http/issues/6).
+- **Breaking — `handleMcpPost` takes a `createServer` factory** instead of a constructed `server`, because the SDK builds one instance per serving unit, per era. The `onError` contract is unchanged, including the `Response` override that `createMcpHandler`'s reporting-only `onerror` cannot express; out-of-band SDK reports are captured and routed through it alongside anything thrown.
+- **`mcpHono` builds its handler once** rather than per request. Rebuilding per request silently defeated the authorization-server metadata cache, which lives in the handler's closure, so a `discoverAuthorizationServer` endpoint re-fetched the AS document on every request instead of once per TTL. The Hono `Context` is threaded through `PlatformCtx` instead.
+
+### Removed
+
+- **Breaking** — `handleMcpPostStateful`, `SessionStore`, and the `stateful` / `sessionTtlMs` options, all deprecated in 0.3.0 and scheduled for this release. Sessions do not exist in 2026-07-28 and server-initiated sampling is replaced by in-result input requests, so there is no replacement to migrate to. Nothing in the known consumer set (`dicom-viewer`, `drypdf`, `legal-web`) used them.
+- **Breaking** — `Mcp-Session-Id` and `Last-Event-ID` from the default CORS allow-list, and `Mcp-Session-Id` from the exposed headers. The revision no longer defines them. With no default exposed headers left, `Access-Control-Expose-Headers` is omitted rather than emitted empty.
+- The `@modelcontextprotocol/sdk` v1 devDependency, dead since the 0.3.0 peer swap and imported nowhere.
+
 ## [0.3.2] — 2026-08-07
 
 ### Fixed

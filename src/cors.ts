@@ -16,15 +16,13 @@ const MCP_ALLOW_HEADERS = [
   // Required POST headers as of 2026-07-28. Request headers, so not exposed.
   "Mcp-Method",
   "Mcp-Name",
-  // 2025-era; go with the session path.
-  "Mcp-Session-Id",
-  "Last-Event-ID",
 ] as const;
 
 /**
- * MCP-required response headers that should be exposed to browser clients.
+ * MCP response headers exposed to browser clients. Empty since sessions were
+ * removed: nothing the transport returns needs reading from script.
  */
-const MCP_EXPOSE_HEADERS = ["Mcp-Session-Id"] as const;
+const MCP_EXPOSE_HEADERS: readonly string[] = [];
 
 /**
  * Prefix for the per-tool parameter headers introduced by SEP-2243.

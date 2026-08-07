@@ -46,10 +46,8 @@ export {
   AUTHORIZATION_SERVER_PATH,
   protectedResourcePath,
 } from "./well-known.js";
-export { handleMcpPost, handleMcpPostStateful } from "./transport.js";
-export type { HandleMcpPostOptions, HandleMcpStatefulOptions } from "./transport.js";
-export { SessionStore } from "./session-store.js";
-export type { SessionEntry, SessionStoreOptions } from "./session-store.js";
+export { handleMcpPost } from "./transport.js";
+export type { HandleMcpPostOptions } from "./transport.js";
 export {
   toJsonRpcErrorBody,
   toJsonRpcErrorResponse,

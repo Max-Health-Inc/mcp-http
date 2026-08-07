@@ -133,33 +133,6 @@ export interface McpHttpHandlerConfig<Env = unknown> {
   ) => McpServer | Promise<McpServer>;
 
   /**
-   * Enable stateful session management for server-initiated RPC
-   * (e.g. sampling/createMessage). When enabled, transport instances
-   * persist across requests using an in-memory session store.
-   *
-   * **Important:** Stateful mode is required for `server.server.createMessage()`
-   * to work, as it needs a persistent SSE connection to send requests back
-   * to the client.
-   *
-   * Default: `false` (stateless, backward-compatible).
-   *
-   * @deprecated Sessions are removed in the 2026-07-28 protocol revision, which
-   * also replaces server-initiated sampling with in-result input requests. This
-   * option selects the session-based path and is scheduled for removal in 0.4.0.
-   * @see {@link https://www.npmjs.com/package/@modelcontextprotocol/server | @modelcontextprotocol/server}
-   */
-  stateful?: boolean;
-
-  /**
-   * Session TTL in milliseconds. Only used when `stateful: true`.
-   * Default: 5 minutes (300_000).
-   *
-   * @deprecated Tied to the deprecated `stateful` option; scheduled for removal
-   * in 0.4.0.
-   */
-  sessionTtlMs?: number;
-
-  /**
    * When provided, serves this document verbatim at
    * `GET /.well-known/oauth-authorization-server`.
    *
