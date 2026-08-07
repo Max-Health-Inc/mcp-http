@@ -69,12 +69,20 @@ export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Resp
       return await fail(reported.err);
     }
 
-    // SSE bodies are still being written when `fetch` resolves, so closing now
-    // would cut the stream. Defer until it drains or is cancelled.
+    // The body is still being written when `fetch` resolves, so closing now
+    // would cut it. Defer until it drains or is cancelled.
     if (res.body instanceof ReadableStream) {
       const original = res.body as ReadableStream<Uint8Array>;
       const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
-      void original.pipeTo(writable).finally(() => void handler.close());
+      // A client disconnecting mid-response rejects the pipe, and `.finally()`
+      // re-raises it. Left unhandled that fires on every cancelled request —
+      // routine traffic, not an error — so swallow both it and any close error.
+      void original
+        .pipeTo(writable)
+        .catch(() => undefined)
+        .finally(() => {
+          void handler.close().catch(() => undefined);
+        });
       return new Response(readable, {
         status: res.status,
         statusText: res.statusText,

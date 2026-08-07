@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking — `handleMcpPost` takes a `createServer` factory** instead of a constructed `server`, because the SDK builds one instance per serving unit, per era. The `onError` contract is unchanged, including the `Response` override that `createMcpHandler`'s reporting-only `onerror` cannot express; out-of-band SDK reports are captured and routed through it alongside anything thrown.
 - **`mcpHono` builds its handler once** rather than per request. Rebuilding per request silently defeated the authorization-server metadata cache, which lives in the handler's closure, so a `discoverAuthorizationServer` endpoint re-fetched the AS document on every request instead of once per TTL. The Hono `Context` is threaded through `PlatformCtx` instead.
 
+### Fixed
+
+- **A disconnecting client raised an unhandled promise rejection.** The response body is piped through a `TransformStream` so the server is closed only once the body drains. Cancelling that pipe — which is what a client disconnecting mid-response does — rejects `pipeTo`, and `.finally()` re-raises it, so the rejection was never handled. This is not an SSE edge case: the SDK returns a `ReadableStream` body for ordinary JSON replies too, so it fired on any cancelled request, which on Workers is routine traffic. The pipe and the subsequent `close()` now both swallow their errors. Present in the 0.3.x transport as well, under the same `void pipeTo(...).finally(...)` shape. Found by a test that installs an `unhandledRejection` listener, cancels the body, and asserts nothing fires; it fails against the unfixed version.
+
 ### Removed
 
 - **Breaking** — `handleMcpPostStateful`, `SessionStore`, and the `stateful` / `sessionTtlMs` options, all deprecated in 0.3.0 and scheduled for this release. Sessions do not exist in 2026-07-28 and server-initiated sampling is replaced by in-result input requests, so there is no replacement to migrate to. Nothing in the known consumer set (`dicom-viewer`, `drypdf`, `legal-web`) used them.

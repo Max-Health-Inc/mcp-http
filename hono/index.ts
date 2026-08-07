@@ -72,12 +72,18 @@ export function mcpHono<E extends Env = Env>(config: McpHonoConfig<E>): Hono<E> 
 
   const handler = createMcpHttpHandler({
     ...config,
+    // The `c` narrowing is sound by construction: the only caller of this
+    // handler is the route below, which always supplies it.
     createServer: (token: string | null, ctx: PlatformCtx) =>
       config.createServer(token, ctx as HonoPlatformCtx<E>),
   });
 
   app.all("*", (c: Context<E>) => {
-    const platformCtx = { env: c.env, c } as Omit<PlatformCtx, "request">;
+    // Typed on the variable rather than at the call site, so the extra `c` is
+    // carried without an assertion.
+    const platformCtx: Omit<PlatformCtx<E["Bindings"]>, "request"> & {
+      c: Context<E>;
+    } = { env: c.env, c };
     return handler(c.req.raw, platformCtx);
   });
 
