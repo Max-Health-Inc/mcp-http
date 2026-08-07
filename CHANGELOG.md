@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-07
+
 ### Changed
 
 - **Breaking — the modern protocol path is delegated to `createMcpHandler`.** 0.3.0 swapped the peer dependency to `@modelcontextprotocol/server` v2 but kept driving `WebStandardStreamableHTTPServerTransport`, which is the 2025-era transport: sessions, `Mcp-Session-Id`, and validation limited to `mcp-protocol-version` against a version list. The endpoint therefore never served 2026-07-28. It does now, and gets `server/discover`, the `_meta` envelope, MRTR, `resultType` and the inbound validation ladder that emits `-32020` `HeaderMismatch` from the SDK rather than from code here. `legacy` is left at its default `'stateless'`, so 2025-era clients continue to be served, one fresh instance per request. This closes [#8](https://github.com/Max-Health-Inc/mcp-http/issues/8) and the `-32020` item from [#6](https://github.com/Max-Health-Inc/mcp-http/issues/6).
@@ -206,7 +208,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.2.1...v0.3.0
