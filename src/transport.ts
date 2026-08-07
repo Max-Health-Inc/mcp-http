@@ -105,7 +105,13 @@ export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Resp
     if (res.body instanceof ReadableStream) {
       const original = res.body as ReadableStream<Uint8Array>;
       const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
-      void original.pipeTo(writable).finally(() => void server.close());
+      // A disconnect rejects the pipe and `.finally()` re-raises it; swallow both.
+      void original
+        .pipeTo(writable)
+        .catch(() => undefined)
+        .finally(() => {
+          void server.close().catch(() => undefined);
+        });
       return new Response(readable, {
         status: res.status,
         statusText: res.statusText,

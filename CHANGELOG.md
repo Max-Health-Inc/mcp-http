@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-08-07
+
+### Fixed
+
+- **A disconnecting client raised an unhandled promise rejection.** The response body is piped through a `TransformStream` so the server closes only once the body drains. Cancelling that pipe — what a client disconnecting mid-response does — rejects `pipeTo`, and `.finally()` re-raises it, so nothing handled the rejection. Not an SSE edge case: the SDK returns a `ReadableStream` body for ordinary JSON replies too, so it fired on any cancelled request, which on Workers is routine traffic. Backported from 0.4.1. Every consumer pinned `^0.3.x` resolves here rather than to the 0.4.x line, so the fix would not otherwise reach them.
+
 ## [0.3.2] — 2026-08-07
 
 ### Fixed
