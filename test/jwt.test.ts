@@ -17,6 +17,20 @@ function makeJwt(payload: Record<string, unknown>): string {
   return `${header}.${body}.fakesignature`;
 }
 
+/** Base64URL-encode raw bytes (btoa alone cannot carry multi-byte payloads). */
+function base64url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Build a JWT whose payload is encoded as real UTF-8. */
+function makeUtf8Jwt(payload: Record<string, unknown>): string {
+  const header = base64url(new TextEncoder().encode(JSON.stringify({ alg: "HS256" })));
+  const body = base64url(new TextEncoder().encode(JSON.stringify(payload)));
+  return `${header}.${body}.fakesignature`;
+}
+
 const nowSec = (): number => Math.floor(Date.now() / 1000);
 
 // ---------------------------------------------------------------------------
@@ -134,5 +148,19 @@ describe("isJwtExpired", () => {
   it("returns false for exp = NaN", () => {
     const jwt = makeJwt({ exp: NaN });
     expect(isJwtExpired(jwt)).toBe(false);
+  });
+
+  it("reads exp from a payload carrying multi-byte claims", () => {
+    const jwt = makeUtf8Jwt({ name: "Müller", org: "Ärzte 東京", exp: nowSec() - 120 });
+    expect(isJwtExpired(jwt)).toBe(true);
+  });
+
+  it("rejects a payload that is invalid UTF-8 but parses as latin1", () => {
+    // 0xFF is not valid UTF-8, yet reading it as latin1 yields a well-formed
+    // JSON document with a live exp. Decoding as latin1 would trust it.
+    const head = new TextEncoder().encode(`{"exp":${nowSec() - 120},"n":"`);
+    const tail = new TextEncoder().encode(`"}`);
+    const bytes = Uint8Array.from([...head, 0xff, ...tail]);
+    expect(isJwtExpired(`hdr.${base64url(bytes)}.sig`)).toBe(false);
   });
 });

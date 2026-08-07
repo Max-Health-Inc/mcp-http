@@ -33,7 +33,10 @@ interface JwtPayload {
  * Decode the payload segment of a JWT without verifying the signature.
  *
  * Returns `null` when the token is structurally invalid (not three dot-separated
- * segments, non-base64url payload, non-JSON payload).
+ * segments, non-base64url payload, non-UTF-8 payload, non-JSON payload).
+ *
+ * Decoding is not verifying. Deliberately unexported so an unverified claim
+ * cannot reach an authorization decision; only {@link isJwtExpired} reads it.
  */
 function decodeJwtPayload(token: string): JwtPayload | null {
   const parts = token.split(".");
@@ -42,11 +45,14 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   const payloadSegment = parts[1];
   if (!payloadSegment) return null;
 
-  // Base64URL → Base64 → binary → UTF-8
+  // atob yields latin1, so a multi-byte claim decodes as mojibake. Decode the
+  // bytes as UTF-8 instead; `fatal` rejects a malformed payload outright.
   const base64 = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
   let jsonStr: string;
   try {
-    jsonStr = atob(base64);
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+    jsonStr = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
     return null;
   }

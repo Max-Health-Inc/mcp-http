@@ -48,6 +48,22 @@ describe("applyCors — origin: '*' (default)", () => {
     expect(allowed).toContain("Last-Event-ID");
   });
 
+  it("allows the 2026-07-28 required POST headers", () => {
+    const headers = new Headers();
+    applyCors(headers, makeReq(), {});
+    const allowed = headers.get("Access-Control-Allow-Headers") ?? "";
+    expect(allowed).toContain("Mcp-Method");
+    expect(allowed).toContain("Mcp-Name");
+  });
+
+  it("does not advertise the request-only MCP headers as exposed", () => {
+    const headers = new Headers();
+    applyCors(headers, makeReq(), {});
+    const exposed = headers.get("Access-Control-Expose-Headers") ?? "";
+    expect(exposed).not.toContain("Mcp-Method");
+    expect(exposed).not.toContain("Mcp-Name");
+  });
+
   it("merges extra allowHeaders", () => {
     const headers = new Headers();
     applyCors(headers, makeReq(), { allowHeaders: ["X-Custom"] });
