@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-08-07
+
 ### Fixed
 
 - **CORS: `Mcp-Session-Id` and `Last-Event-ID` are back in the allow-list**, reverting a regression shipped in 0.4.0. They were removed on the reasoning that the 2026-07-28 revision no longer defines them. Checking the normative text rather than the SDK shows that is the wrong conclusion: the backward-compatibility section says a server on this revision receiving 2025-era traffic should _ignore_ both headers, not refuse them. Omitting a header from `Access-Control-Allow-Headers` is a refusal — a browser sending it fails preflight and never issues the request — so 0.4.0 broke exactly the browser-hosted legacy clients that `legacy: 'stateless'` exists to serve. Non-browser clients were unaffected, CORS being a browser mechanism. Only the exposed-header default remains changed, which is correct now that sessions are gone.
@@ -212,7 +214,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.0...v0.3.1
