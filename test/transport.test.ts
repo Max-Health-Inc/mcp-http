@@ -8,6 +8,16 @@ function makeServer(): McpServer {
 
 const BASE = "https://api.example.com";
 
+/**
+ * Wait for the deferred close(): it runs off the pipe chain, not the body read,
+ * so draining the response does not guarantee it has happened yet.
+ */
+async function flush(spy: { mock: { calls: unknown[] } }): Promise<void> {
+  for (let i = 0; i < 50 && spy.mock.calls.length === 0; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 2));
+  }
+}
+
 function makePostReq(body: unknown = {}): Request {
   return new Request(`${BASE}/mcp`, {
     method: "POST",
@@ -32,6 +42,7 @@ describe("handleMcpPost — server.close() lifecycle", () => {
 
     // Consume body — for SSE responses, close is deferred until stream ends
     await res.text();
+    await flush(closeSpy);
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -49,6 +60,7 @@ describe("handleMcpPost — server.close() lifecycle", () => {
     // The transport may or may not throw — we just care close() was called
     const res = await handleMcpPost({ server, req: badReq }).catch(() => undefined);
     if (res) await res.text();
+    await flush(closeSpy);
 
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
@@ -155,6 +167,7 @@ describe("handleMcpPost — SSE stream lifecycle", () => {
       expect(closeSpy).not.toHaveBeenCalled();
       // Consume the body — this triggers the deferred close
       await res.text();
+      await flush(closeSpy);
       expect(closeSpy).toHaveBeenCalledTimes(1);
     } else {
       // JSON response — close is called immediately
@@ -180,6 +193,7 @@ describe("handleMcpPost — SSE stream lifecycle", () => {
 
     // Consume the full response
     await res.text();
+    await flush(closeSpy);
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -191,6 +205,7 @@ describe("handleMcpPost — SSE stream lifecycle", () => {
     const closeSpy = spyOn(server, "close");
 
     await handleMcpPost({ server, req: makePostReq() });
+    await flush(closeSpy);
     expect(closeSpy).toHaveBeenCalledTimes(1);
   });
 });
