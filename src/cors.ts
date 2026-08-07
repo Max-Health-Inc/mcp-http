@@ -16,6 +16,12 @@ const MCP_ALLOW_HEADERS = [
   // Required POST headers as of 2026-07-28. Request headers, so not exposed.
   "Mcp-Method",
   "Mcp-Name",
+  // 2025-era. The revision tells a server receiving these to IGNORE them, and we
+  // still serve that traffic (`legacy: 'stateless'`). Dropping them from the
+  // allow-list would instead fail preflight, so a browser-hosted legacy client
+  // could never send the request at all. They go when legacy serving does.
+  "Mcp-Session-Id",
+  "Last-Event-ID",
 ] as const;
 
 /**

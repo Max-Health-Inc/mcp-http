@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **Breaking** — `handleMcpPostStateful`, `SessionStore`, and the `stateful` / `sessionTtlMs` options, all deprecated in 0.3.0 and scheduled for this release. Sessions do not exist in 2026-07-28 and server-initiated sampling is replaced by in-result input requests, so there is no replacement to migrate to. Nothing in the known consumer set (`dicom-viewer`, `drypdf`, `legal-web`) used them.
-- **Breaking** — `Mcp-Session-Id` and `Last-Event-ID` from the default CORS allow-list, and `Mcp-Session-Id` from the exposed headers. The revision no longer defines them. With no default exposed headers left, `Access-Control-Expose-Headers` is omitted rather than emitted empty.
+- **Breaking** — `Mcp-Session-Id` from the default CORS **exposed** headers. With no default exposed headers left, `Access-Control-Expose-Headers` is omitted rather than emitted empty. Both `Mcp-Session-Id` and `Last-Event-ID` remain in the **allow** list: the revision tells a server receiving them to ignore them, and this package still serves that traffic (`legacy: 'stateless'`). Dropping them from the allow-list would instead fail CORS preflight, so a browser-hosted legacy client could never send the request at all. They go when legacy serving does.
 - The `@modelcontextprotocol/sdk` v1 devDependency, dead since the 0.3.0 peer swap and imported nowhere.
 
 ## [0.3.2] — 2026-08-07
