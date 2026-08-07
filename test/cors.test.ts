@@ -47,12 +47,15 @@ describe("applyCors — origin: '*' (default)", () => {
     expect(allowed).toContain("MCP-Protocol-Version");
   });
 
-  it("no longer advertises the 2025-era session headers", () => {
+  it("still admits the 2025-era headers while legacy traffic is served", () => {
+    // The revision says to IGNORE these, not reject them. Omitting them from
+    // the allow-list fails preflight, so a browser-hosted legacy client could
+    // never send the request at all.
     const headers = new Headers();
     applyCors(headers, makeReq(), {});
     const allowed = headers.get("Access-Control-Allow-Headers") ?? "";
-    expect(allowed).not.toContain("Mcp-Session-Id");
-    expect(allowed).not.toContain("Last-Event-ID");
+    expect(allowed).toContain("Mcp-Session-Id");
+    expect(allowed).toContain("Last-Event-ID");
   });
 
   it("allows the 2026-07-28 required POST headers", () => {
