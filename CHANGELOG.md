@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-07
+
 ### Added
 
 - **The MCP endpoint now refuses a disallowed `Origin` with `403`** ([#21](https://github.com/Max-Health-Inc/mcp-http/issues/21)). The spec requires servers to validate `Origin` on all incoming connections and answer `403 Forbidden` when it is present and invalid, as a DNS-rebinding defence. This package previously only omitted `Access-Control-Allow-Origin`, which stops the browser _reading_ the response but not the server _executing_ the request — the tool call had already run, which is the attack. A new exported `isOriginAllowed(req, corsOptions)` answers the policy question, kept separate from `resolveOrigin` because that one answers what header to emit rather than whether to serve at all. A test asserts the server factory is never invoked for a refused origin.
@@ -224,7 +226,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.1...v0.3.2
