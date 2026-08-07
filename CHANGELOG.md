@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The MCP endpoint now refuses a disallowed `Origin` with `403`** ([#21](https://github.com/Max-Health-Inc/mcp-http/issues/21)). The spec requires servers to validate `Origin` on all incoming connections and answer `403 Forbidden` when it is present and invalid, as a DNS-rebinding defence. This package previously only omitted `Access-Control-Allow-Origin`, which stops the browser _reading_ the response but not the server _executing_ the request — the tool call had already run, which is the attack. A new exported `isOriginAllowed(req, corsOptions)` answers the policy question, kept separate from `resolveOrigin` because that one answers what header to emit rather than whether to serve at all. A test asserts the server factory is never invoked for a refused origin.
+
+  Scope: only when `cors.origin` is an explicit string, array or function. The `"*"` default allows everything by design and is unchanged, as is a request with no `Origin` header (a non-browser caller). Only the MCP endpoint is gated; the well-known metadata routes stay publicly fetchable.
+
+### Changed
+
+- **The `401` challenge is now built by the SDK's `bearerAuthChallengeResponse`** ([#18](https://github.com/Max-Health-Inc/mcp-http/issues/18)), replacing a hand-rolled response. The challenge gains `error="invalid_token"` and `error_description`, which RFC 6750 wants and the local version omitted, plus an OAuth error JSON body where there was previously no body at all. The `resource_metadata` pointer is unchanged. Anything asserting on the exact `WWW-Authenticate` string will need to match on substrings rather than equality.
+
 ## [0.4.1] — 2026-08-07
 
 ### Fixed

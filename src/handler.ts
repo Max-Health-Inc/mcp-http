@@ -1,10 +1,11 @@
+import { OAuthError, bearerAuthChallengeResponse } from "@modelcontextprotocol/server";
 import type {
   McpHttpHandlerConfig,
   PlatformCtx,
   McpRequestOutcome,
   AuthorizationServerMetadata,
 } from "./types.js";
-import { applyCors, handlePreflight } from "./cors.js";
+import { applyCors, handlePreflight, isOriginAllowed } from "./cors.js";
 import { extractBearer, isJwtExpired } from "./jwt.js";
 import { handleMcpPost } from "./transport.js";
 import type { HandleMcpPostOptions } from "./transport.js";
@@ -15,6 +16,7 @@ import {
   protectedResourceResponse,
   authorizationServerResponse,
 } from "./well-known.js";
+import { JSON_RPC_ERROR_CODES, toJsonRpcErrorResponse } from "./errors.js";
 import { DEFAULT_MCP_PATH, allowedMethodsFor, allowMethodsValue } from "./routes.js";
 
 /** How long a successfully discovered AS metadata document is cached (ms). */
@@ -38,26 +40,19 @@ function withCors(
 }
 
 /**
- * Build a 401 response with the `WWW-Authenticate` resource-metadata pointer.
+ * Build the 401 challenge, delegating the response shape to the SDK.
  *
- * **Note — Host-header trust:** `req.url` is used to derive the origin, so
- * the accuracy of the pointer depends on the runtime correctly normalising
- * the request URL. On Cloudflare Workers this is always the worker's own
- * domain. On Node / Bun / Deno served directly (without a reverse proxy that
- * sets a canonical `Host`), a client could supply a spoofed `Host` header and
- * receive a `WWW-Authenticate` URL pointing to an attacker-controlled host.
- * Mitigate by running behind a reverse proxy that enforces the `Host` header,
- * or by configuring a `publicOrigin` at the edge/platform level.
+ * Host-header trust: `req.url` derives the origin, so a spoofed `Host` behind a
+ * proxy that does not normalise it yields an attacker-controlled pointer URL.
  */
-function unauthorizedResponse(req: Request, prmPath: string): Response {
-  const origin = new URL(req.url).origin;
-  const resourceMetadataUrl = `${origin}${prmPath}`;
-
-  return new Response(null, {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl}"`,
-    },
+function unauthorizedResponse(
+  req: Request,
+  prmPath: string,
+  description: string,
+): Response {
+  const resourceMetadataUrl = `${new URL(req.url).origin}${prmPath}`;
+  return bearerAuthChallengeResponse(new OAuthError("invalid_token", description), {
+    resourceMetadataUrl,
   });
 }
 
@@ -230,6 +225,26 @@ export function buildHandler<Env = unknown>(
     }
 
     // -----------------------------------------------------------------------
+    // MCP endpoint — Origin gate (DNS-rebinding defence)
+    // -----------------------------------------------------------------------
+    // Refused outright rather than merely denied the CORS header: otherwise the
+    // request still executes and only its response is unreadable.
+    if (
+      pathname === mcpPath &&
+      config.cors !== false &&
+      !isOriginAllowed(req, config.cors ?? {})
+    ) {
+      return respond(
+        toJsonRpcErrorResponse(
+          403,
+          JSON_RPC_ERROR_CODES.INVALID_REQUEST,
+          "Forbidden: the Origin header is not permitted by this server",
+        ),
+        "forbidden",
+      );
+    }
+
+    // -----------------------------------------------------------------------
     // MCP endpoint — non-POST methods → 405
     // -----------------------------------------------------------------------
     if (pathname === mcpPath && req.method !== "POST") {
@@ -258,11 +273,17 @@ export function buildHandler<Env = unknown>(
         token = extractBearer(req.headers.get("Authorization"));
 
         if (token === null) {
-          return respond(unauthorizedResponse(req, prmPath), "unauthorized");
+          return respond(
+            unauthorizedResponse(req, prmPath, "A Bearer token is required"),
+            "unauthorized",
+          );
         }
 
         if (earlyReject && isJwtExpired(token)) {
-          return respond(unauthorizedResponse(req, prmPath), "token-expired");
+          return respond(
+            unauthorizedResponse(req, prmPath, "The access token has expired"),
+            "token-expired",
+          );
         }
       }
 

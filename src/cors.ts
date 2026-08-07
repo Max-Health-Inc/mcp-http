@@ -60,6 +60,31 @@ function resolveAllowHeaders(req: Request, options: CorsOptions): string {
   return [...base, ...params].join(", ");
 }
 
+/**
+ * Whether the configured policy permits this request's `Origin`.
+ *
+ * Distinct from {@link resolveOrigin}, which answers what header to emit. A
+ * disallowed origin must be refused outright, not merely denied the header: the
+ * request would otherwise still execute and only its response be unreadable,
+ * which is the DNS-rebinding case the spec requires a `403` for.
+ *
+ * An absent `Origin` is allowed — that is a non-browser caller, and the header
+ * is what browsers attach.
+ */
+export function isOriginAllowed(req: Request, options: CorsOptions): boolean {
+  const requestOrigin = req.headers.get("Origin");
+  if (requestOrigin === null) return true;
+
+  const { origin } = options;
+  if (origin === undefined || origin === "*") return true;
+  if (typeof origin === "string") return origin === "*" || origin === requestOrigin;
+  if (typeof origin === "function") {
+    const resolved = origin(req);
+    return resolved !== null && (resolved === "*" || resolved === requestOrigin);
+  }
+  return origin.includes(requestOrigin);
+}
+
 /** Resolve the `Access-Control-Allow-Origin` value for a given request. */
 function resolveOrigin(req: Request, origin: CorsOptions["origin"]): string | null {
   if (origin === undefined || origin === "*") return "*";
