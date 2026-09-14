@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-09-14
+
 ### Changed
 
 - **The optional `hono` peer range now starts at the patched `>=4.13.5`**, raised from `>=4.12.0`. Every hono at or below 4.13.4 carries three advisories: `toSSG()` writes files outside the output directory, `parseBody()` exhausts memory on unbounded dot-notation nesting, and the query parser reads parameters after the URL fragment, which lets a cache key and a proxy disagree about what a request asked for. The old floor spanned all of them, so a consumer resolving this peer could land on an affected version and nothing here would say so. Consumers still on hono 4.12.x will now see a peer warning, which is the intent.
@@ -231,7 +233,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.3.2...v0.4.0
