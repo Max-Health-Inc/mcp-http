@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The optional `hono` peer range now starts at the patched `>=4.13.5`**, raised from `>=4.12.0`. Every hono at or below 4.13.4 carries three advisories: `toSSG()` writes files outside the output directory, `parseBody()` exhausts memory on unbounded dot-notation nesting, and the query parser reads parameters after the URL fragment, which lets a cache key and a proxy disagree about what a request asked for. The old floor spanned all of them, so a consumer resolving this peer could land on an affected version and nothing here would say so. Consumers still on hono 4.12.x will now see a peer warning, which is the intent.
+- Development toolchain moved to eslint 10.10.0, typescript-eslint 8.70.0 and @types/bun 1.4.2. TypeScript stays at 6.0.3: typescript-eslint 8.70.0 is the newest release and declares `typescript: ">=4.8.4 <6.1.0"`, so 7.x would put the type-aware lint layer outside its supported range.
+
 ## [0.5.0] — 2026-08-07
 
 ### Added

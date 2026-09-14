@@ -1,7 +1,16 @@
-# Dependabot configuration for automatic dependency updates
+# Dependabot configuration — GitHub Actions ONLY.
 #
-# Mirrors the org config in Max-Health-Inc/armband and Max-Health-Inc/sleeptracker,
-# extended with the npm ecosystem.
+# Matches armband and sleeptracker, which were always actions-only. The npm ecosystem is
+# deliberately absent: DRY.codes already reports dependency drift across every indexed repo at
+# once (`list_dependency_drift`), which is the more useful view — a library pinned at N
+# different versions org-wide, rather than one repo nudged at a time with no sight of its
+# siblings.
+#
+# Actions are kept because nothing else watches them: pinned per workflow file, invisible to a
+# package index, and a stale action is a supply-chain question rather than a drift one.
+#
+# NOTE: Dependabot reads this file from the DEFAULT branch, so a change here takes effect once
+# `develop` is promoted to main, not on the push to develop.
 #
 # IMPORTANT — target-branch: "develop"
 # Merging to `main` publishes to npm (see .github/workflows/release.yml). Dependabot
@@ -26,25 +35,3 @@ updates:
       actions:
         patterns:
           - "*"
-
-  # npm
-  - package-ecosystem: "npm"
-    directory: "/"
-    target-branch: "develop"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(deps)"
-    labels:
-      - "dependencies"
-    groups:
-      # Everything here is a devDependency; grouping keeps this to one PR a week.
-      dev-dependencies:
-        dependency-type: "development"
-    ignore:
-      # TypeScript 7 is out, but typescript-eslint still declares a
-      # `typescript: >=4.8.4 <6.1.0` peer range, so a TS 7 bump breaks `bun run lint`.
-      # Remove this entry once typescript-eslint supports the 7.x line — a grouped PR
-      # would otherwise fail every week and block the other dev-dependency updates.
-      - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
