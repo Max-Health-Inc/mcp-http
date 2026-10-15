@@ -148,7 +148,9 @@ createMcpHttpHandler({
 });
 ```
 
-The default CORS config allows `*` origins and admits the MCP-required request headers (`Content-Type`, `Authorization`, `MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`).
+The default CORS config allows `*` origins and admits the MCP-required request headers (`Content-Type`, `Authorization`, `MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), plus the 2025-era `Mcp-Session-Id` and `Last-Event-ID` that the spec says to ignore rather than refuse. It exposes `WWW-Authenticate`, because clients MUST take the `resource_metadata` URL from a 401 challenge when it is present, and a cross-origin browser client cannot read that header unless it is exposed.
+
+A host that runs its own CORS layer in front of other routes can reuse the same contract instead of copying it: `MCP_REQUEST_HEADERS` for `Access-Control-Allow-Headers`, `MCP_EXPOSED_RESPONSE_HEADERS` for `Access-Control-Expose-Headers`, and `MCP_PARAM_HEADER_PREFIX` for the per-tool headers below.
 
 Per-tool `Mcp-Param-*` headers (SEP-2243) are admitted dynamically: any such header a client lists in its preflight `Access-Control-Request-Headers` is echoed back in `Access-Control-Allow-Headers`. Header names outside that prefix are never reflected, so you still declare your own via `allowHeaders`.
 

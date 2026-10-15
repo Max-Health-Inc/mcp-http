@@ -1,5 +1,11 @@
 import { describe, it, expect } from "bun:test";
-import { applyCors, handlePreflight } from "../src/cors.js";
+import {
+  applyCors,
+  handlePreflight,
+  MCP_EXPOSED_RESPONSE_HEADERS,
+  MCP_PARAM_HEADER_PREFIX,
+  MCP_REQUEST_HEADERS,
+} from "../src/cors.js";
 
 const makeReq = (origin?: string): Request =>
   new Request("https://api.example.com/mcp", {
@@ -82,12 +88,18 @@ describe("applyCors — origin: '*' (default)", () => {
     expect(allowed).toContain("Authorization");
   });
 
-  it("omits Access-Control-Expose-Headers when nothing needs exposing", () => {
-    // Sessions were the only default; with them gone the header is dropped
-    // entirely rather than emitted empty.
+  it("exposes WWW-Authenticate so a browser client can read the 401 challenge", () => {
     const headers = new Headers();
-    applyCors(headers, makeReq(), {});
-    expect(headers.get("Access-Control-Expose-Headers")).toBeNull();
+    applyCors(headers, makeReq("https://app.example.com"), {});
+    expect(headers.get("Access-Control-Expose-Headers")).toBe("WWW-Authenticate");
+  });
+
+  it("does not expose MCP-Protocol-Version, which no response carries", () => {
+    const headers = new Headers();
+    applyCors(headers, makeReq("https://app.example.com"), {});
+    const exposed = (headers.get("Access-Control-Expose-Headers") ?? "").toLowerCase();
+    expect(exposed).not.toContain("mcp-protocol-version");
+    expect(exposed).not.toContain("mcp-session-id");
   });
 
   it("merges extra exposeHeaders", () => {
@@ -313,5 +325,29 @@ describe("preflight Allow-Methods agrees with the handler per route", () => {
   it("no longer advertises DELETE, which the handler rejects with 405", () => {
     const res = preflightTo("https://api.example.com/mcp");
     expect(res.headers.get("Access-Control-Allow-Methods")).not.toContain("DELETE");
+  });
+});
+
+describe("exported header contract", () => {
+  it("is exactly what applyCors emits, so hosts can reuse it", () => {
+    const headers = new Headers();
+    applyCors(headers, makeReq("https://app.example.com"), {});
+    expect(headers.get("Access-Control-Allow-Headers")).toBe(
+      MCP_REQUEST_HEADERS.join(", "),
+    );
+    expect(headers.get("Access-Control-Expose-Headers")).toBe(
+      MCP_EXPOSED_RESPONSE_HEADERS.join(", "),
+    );
+  });
+
+  it("names the per-tool parameter header prefix", () => {
+    expect(MCP_PARAM_HEADER_PREFIX).toBe("mcp-param-");
+  });
+
+  it("is reachable from the package entry point", async () => {
+    const entry = await import("../src/index.js");
+    expect(entry.MCP_REQUEST_HEADERS).toBe(MCP_REQUEST_HEADERS);
+    expect(entry.MCP_EXPOSED_RESPONSE_HEADERS).toBe(MCP_EXPOSED_RESPONSE_HEADERS);
+    expect(entry.MCP_PARAM_HEADER_PREFIX).toBe(MCP_PARAM_HEADER_PREFIX);
   });
 });

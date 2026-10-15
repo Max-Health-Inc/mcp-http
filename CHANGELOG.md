@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The CORS header contract is exported**: `MCP_REQUEST_HEADERS`, `MCP_EXPOSED_RESPONSE_HEADERS` and `MCP_PARAM_HEADER_PREFIX`. Hosts that run their own CORS layer (for example an Elysia app serving non-MCP routes next to this handler) kept a copy of these lists, and the copies drifted: `@maxhealth.tech/elysia-mcp` exposed `Mcp-Protocol-Version`, which no response carries, and had no `Mcp-Param-*` handling. Each list now has one home, and a test pins the exports to the headers `applyCors` emits.
+
+### Fixed
+
+- **`WWW-Authenticate` is now exposed to cross-origin clients.** The 2026-07-28 authorization spec says clients MUST use the `resource_metadata` URL from a 401's `WWW-Authenticate` header when present, and fall back to well-known URIs only otherwise. The exposed-header default was empty, so a browser-hosted client on another origin could not read the challenge this package sends and silently took the fallback path. `Access-Control-Expose-Headers: WWW-Authenticate` is now always set; user-supplied `exposeHeaders` are still appended.
+
 ## [0.6.0] — 2026-09-14
 
 ### Changed
