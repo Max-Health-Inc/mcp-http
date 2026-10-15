@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-15
+
 ### Added
 
 - **The CORS header contract is exported**: `MCP_REQUEST_HEADERS`, `MCP_EXPOSED_RESPONSE_HEADERS` and `MCP_PARAM_HEADER_PREFIX`. Hosts that run their own CORS layer (for example an Elysia app serving non-MCP routes next to this handler) kept a copy of these lists, and the copies drifted: `@maxhealth.tech/elysia-mcp` exposed `Mcp-Protocol-Version`, which no response carries, and had no `Mcp-Param-*` handling. Each list now has one home, and a test pins the exports to the headers `applyCors` emits.
@@ -241,7 +243,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.0...v0.4.1
