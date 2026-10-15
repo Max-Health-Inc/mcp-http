@@ -147,6 +147,27 @@ describe("applyCors — origin: specific string", () => {
     const vary = headers.get("Vary") ?? "";
     expect(vary).toContain("Origin");
   });
+
+  it("keeps an existing Vary and adds Origin once, however often it runs", () => {
+    const headers = new Headers({ Vary: "Accept-Encoding, origin" });
+    const req = makeReq("https://app.example.com");
+    applyCors(headers, req, { origin: "https://app.example.com" });
+    applyCors(headers, req, { origin: "https://app.example.com" });
+    expect(headers.get("Vary")).toBe("Accept-Encoding, origin");
+
+    const fresh = new Headers({ Vary: "Accept-Encoding" });
+    applyCors(fresh, req, { origin: "https://app.example.com" });
+    applyCors(fresh, req, { origin: "https://app.example.com" });
+    expect(fresh.get("Vary")).toBe("Accept-Encoding, Origin");
+  });
+
+  it("leaves Vary: * alone, since it already varies on everything", () => {
+    const headers = new Headers({ Vary: "*" });
+    applyCors(headers, makeReq("https://app.example.com"), {
+      origin: "https://app.example.com",
+    });
+    expect(headers.get("Vary")).toBe("*");
+  });
 });
 
 describe("applyCors — origin: string[]", () => {

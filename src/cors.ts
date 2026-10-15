@@ -103,6 +103,18 @@ function resolveOrigin(req: Request, origin: CorsOptions["origin"]): string | nu
   return null;
 }
 
+/** Add a field to a Vary list once, case-insensitively; `*` already covers it (RFC 9110 §12.5.5). */
+function withVaryField(vary: string | null, field: string): string {
+  const fields = (vary ?? "")
+    .split(",")
+    .map((f) => f.trim())
+    .filter(Boolean);
+  if (fields.includes("*")) return "*";
+  if (fields.some((f) => f.toLowerCase() === field.toLowerCase()))
+    return fields.join(", ");
+  return [...fields, field].join(", ");
+}
+
 /**
  * Apply CORS headers to an existing (mutable) `Headers` instance.
  *
@@ -130,11 +142,8 @@ export function applyCors(headers: Headers, req: Request, options: CorsOptions):
   const allowedOrigin = resolveOrigin(req, options.origin);
   if (allowedOrigin !== null) {
     headers.set("Access-Control-Allow-Origin", allowedOrigin);
-    // Vary must include Origin when a specific origin is echoed back
-    if (allowedOrigin !== "*") {
-      const vary = headers.get("Vary");
-      headers.set("Vary", vary ? `${vary}, Origin` : "Origin");
-    }
+    if (allowedOrigin !== "*")
+      headers.set("Vary", withVaryField(headers.get("Vary"), "Origin"));
   }
 
   if (options.credentials === true) {
