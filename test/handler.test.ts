@@ -367,6 +367,21 @@ describe("POST /mcp — auth gate", () => {
     expect(wwwAuth).toContain("/.well-known/oauth-protected-resource");
   });
 
+  it("lets a cross-origin browser client read the 401 challenge", async () => {
+    // Clients MUST use resource_metadata from WWW-Authenticate when present
+    // (2026-07-28 authorization discovery); cross-origin that needs exposing.
+    const res = await handler(
+      makeReq("/mcp", "POST", undefined, {
+        headers: { Origin: "https://app.example.com" },
+      }),
+    );
+    expect(res.status).toBe(401);
+    const exposed = (res.headers.get("Access-Control-Expose-Headers") ?? "")
+      .split(",")
+      .map((h) => h.trim().toLowerCase());
+    expect(exposed).toContain("www-authenticate");
+  });
+
   it("returns 401 when token is expired", async () => {
     const expiredPayload = btoa(
       JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 120 }),

@@ -2,10 +2,11 @@ import type { CorsOptions } from "./types.js";
 import { allowedMethodsFor, allowMethodsValue } from "./routes.js";
 
 /**
- * MCP-required request headers. None are CORS-safelisted, so omitting any of
- * them fails preflight for every browser-hosted client.
+ * Request headers a browser-hosted MCP client sends, for `Access-Control-Allow-Headers`.
+ * None are CORS-safelisted, so omitting any of them fails that client's preflight.
+ * Per-tool `Mcp-Param-*` headers are admitted by prefix on top of this list.
  */
-const MCP_ALLOW_HEADERS = [
+export const MCP_REQUEST_HEADERS = [
   "Content-Type",
   "Authorization",
   "MCP-Protocol-Version",
@@ -18,8 +19,11 @@ const MCP_ALLOW_HEADERS = [
   "Last-Event-ID",
 ] as const;
 
-/** Exposed response headers. Empty since sessions were removed. */
-const MCP_EXPOSE_HEADERS: readonly string[] = [];
+/**
+ * Response headers a browser-hosted client must read, for `Access-Control-Expose-Headers`.
+ * Clients MUST take `resource_metadata` from a 401's `WWW-Authenticate` when present.
+ */
+export const MCP_EXPOSED_RESPONSE_HEADERS = ["WWW-Authenticate"] as const;
 
 /**
  * Prefix for the per-tool parameter headers introduced by SEP-2243.
@@ -28,7 +32,7 @@ const MCP_EXPOSE_HEADERS: readonly string[] = [];
  * conforming client MUST send it. The names are chosen per tool at runtime, so
  * no fixed list can cover them — they are admitted by prefix instead.
  */
-const MCP_PARAM_HEADER_PREFIX = "mcp-param-";
+export const MCP_PARAM_HEADER_PREFIX = "mcp-param-";
 
 const DEFAULT_MAX_AGE = 600;
 
@@ -40,7 +44,7 @@ const DEFAULT_MAX_AGE = 600;
  * arbitrary requested headers are not reflected.
  */
 function resolveAllowHeaders(req: Request, options: CorsOptions): string {
-  const base: string[] = [...MCP_ALLOW_HEADERS, ...(options.allowHeaders ?? [])];
+  const base: string[] = [...MCP_REQUEST_HEADERS, ...(options.allowHeaders ?? [])];
 
   const requested = req.headers.get("Access-Control-Request-Headers");
   if (requested === null) return base.join(", ");
@@ -139,7 +143,10 @@ export function applyCors(headers: Headers, req: Request, options: CorsOptions):
 
   headers.set("Access-Control-Allow-Headers", resolveAllowHeaders(req, options));
 
-  const exposeHeaders = [...MCP_EXPOSE_HEADERS, ...(options.exposeHeaders ?? [])];
+  const exposeHeaders = [
+    ...MCP_EXPOSED_RESPONSE_HEADERS,
+    ...(options.exposeHeaders ?? []),
+  ];
   // Omit the header entirely rather than emitting a bare empty value.
   if (exposeHeaders.length > 0) {
     headers.set("Access-Control-Expose-Headers", exposeHeaders.join(", "));
