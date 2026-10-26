@@ -1,5 +1,5 @@
 import { describe, it, expect, mock } from "bun:test";
-import { McpServer } from "@modelcontextprotocol/server";
+import { emptyServer } from "./helpers/server.js";
 import { createMcpHttpHandler } from "../src/index.js";
 import type { McpHttpHandlerConfig } from "../src/types.js";
 
@@ -10,14 +10,10 @@ import type { McpHttpHandlerConfig } from "../src/types.js";
 const AS = "https://auth.example.com";
 const BASE = "https://api.example.com";
 
-function makeServer(): McpServer {
-  return new McpServer({ name: "test", version: "0.0.1" });
-}
-
 function makeConfig(overrides: Partial<McpHttpHandlerConfig> = {}): McpHttpHandlerConfig {
   return {
     authorizationServer: AS,
-    createServer: () => makeServer(),
+    createServer: () => emptyServer(),
     ...overrides,
   };
 }
@@ -711,7 +707,7 @@ describe("public endpoint — authorizationServer omitted", () => {
     overrides: Partial<McpHttpHandlerConfig> = {},
   ): McpHttpHandlerConfig {
     return {
-      createServer: (_token, _ctx) => makeServer(),
+      createServer: (_token, _ctx) => emptyServer(),
       ...overrides,
     };
   }
@@ -738,7 +734,7 @@ describe("public endpoint — authorizationServer omitted", () => {
       makePublicConfig({
         createServer: (token, _ctx) => {
           receivedTokens.push(token);
-          return makeServer();
+          return emptyServer();
         },
       }),
     );

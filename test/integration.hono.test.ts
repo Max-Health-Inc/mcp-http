@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { Hono } from "hono";
-import { McpServer } from "@modelcontextprotocol/server";
+import { emptyServer } from "./helpers/server.js";
 import { mcpHono } from "../hono/index.js";
 import { forwardBearer } from "../src/index.js";
 
@@ -21,10 +21,6 @@ function validJwt(): string {
   return `eyJ.${payload}.sig`;
 }
 
-function makeServer(): McpServer {
-  return new McpServer({ name: "integration-test", version: "0.0.1" });
-}
-
 // ---------------------------------------------------------------------------
 // Integration: full request → response through the Hono adapter
 // ---------------------------------------------------------------------------
@@ -35,7 +31,7 @@ describe("mcpHono integration", () => {
     "/",
     mcpHono({
       authorizationServer: AS,
-      createServer: (_token) => makeServer(),
+      createServer: (_token) => emptyServer(),
     }),
   );
 

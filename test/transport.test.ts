@@ -1,14 +1,6 @@
 import { describe, it, expect, mock } from "bun:test";
-import { McpServer } from "@modelcontextprotocol/server";
+import { pingServer } from "./helpers/server.js";
 import { handleMcpPost } from "../src/transport.js";
-
-function makeServer(): McpServer {
-  const server = new McpServer({ name: "test-transport", version: "0.0.1" });
-  server.registerTool("ping", { description: "ping tool" }, () =>
-    Promise.resolve({ content: [{ type: "text" as const, text: "pong" }] }),
-  );
-  return server;
-}
 
 const BASE = "https://api.example.com";
 
@@ -32,14 +24,14 @@ const INITIALIZE = { jsonrpc: "2.0", id: 1, method: "initialize", params: {} };
 describe("handleMcpPost — delegation", () => {
   it("answers a POST with a Response", async () => {
     const res = await handleMcpPost({
-      createServer: makeServer,
+      createServer: pingServer,
       req: makePostReq(INITIALIZE),
     });
     expect(res).toBeInstanceOf(Response);
   });
 
   it("invokes the factory to build the server", async () => {
-    const createServer = mock(() => makeServer());
+    const createServer = mock(() => pingServer());
     const res = await handleMcpPost({ createServer, req: makePostReq(INITIALIZE) });
     await res.text();
     expect(createServer).toHaveBeenCalled();
@@ -47,7 +39,7 @@ describe("handleMcpPost — delegation", () => {
 
   it("streams an SSE body through to completion", async () => {
     const res = await handleMcpPost({
-      createServer: makeServer,
+      createServer: pingServer,
       req: makePostReq(INITIALIZE),
     });
     // Whether the SDK answers JSON or SSE, the body must be readable in full:

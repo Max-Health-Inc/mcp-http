@@ -1,19 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { McpServer } from "@modelcontextprotocol/server";
+import { pingServer, MODERN_META } from "./helpers/server.js";
 import { createMcpHttpHandler, isOriginAllowed } from "../src/index.js";
-
-function makeServer(): McpServer {
-  const server = new McpServer({ name: "origin", version: "0.0.1" });
-  server.registerTool("ping", { description: "ping" }, () =>
-    Promise.resolve({ content: [{ type: "text" as const, text: "pong" }] }),
-  );
-  return server;
-}
-
-const META = {
-  "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-  "io.modelcontextprotocol/clientCapabilities": {},
-};
 
 function post(origin?: string): Request {
   const headers: Record<string, string> = {
@@ -31,7 +18,7 @@ function post(origin?: string): Request {
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
-      params: { name: "ping", arguments: {}, _meta: META },
+      params: { name: "ping", arguments: {}, _meta: MODERN_META },
     }),
   });
 }
@@ -76,7 +63,7 @@ describe("MCP endpoint — Origin gate", () => {
     const handler = createMcpHttpHandler({
       createServer: () => {
         built++;
-        return makeServer();
+        return pingServer();
       },
       cors: { origin: ["https://app.example.com"] },
     });
@@ -93,7 +80,7 @@ describe("MCP endpoint — Origin gate", () => {
 
   it("serves a permitted Origin", async () => {
     const handler = createMcpHttpHandler({
-      createServer: () => makeServer(),
+      createServer: () => pingServer(),
       cors: { origin: ["https://app.example.com"] },
     });
 
@@ -104,7 +91,7 @@ describe("MCP endpoint — Origin gate", () => {
 
   it("serves a request with no Origin at all", async () => {
     const handler = createMcpHttpHandler({
-      createServer: () => makeServer(),
+      createServer: () => pingServer(),
       cors: { origin: ["https://app.example.com"] },
     });
 
@@ -113,7 +100,7 @@ describe("MCP endpoint — Origin gate", () => {
   });
 
   it("does not gate under the wildcard default", async () => {
-    const handler = createMcpHttpHandler({ createServer: () => makeServer() });
+    const handler = createMcpHttpHandler({ createServer: () => pingServer() });
     const res = await handler(req("https://anywhere.example"));
     expect(res.status).toBe(200);
   });
@@ -121,7 +108,7 @@ describe("MCP endpoint — Origin gate", () => {
   it("reports the refusal through onRequest", async () => {
     const outcomes: string[] = [];
     const handler = createMcpHttpHandler({
-      createServer: () => makeServer(),
+      createServer: () => pingServer(),
       cors: { origin: ["https://app.example.com"] },
       onRequest: (e) => {
         outcomes.push(e.outcome);
@@ -137,7 +124,7 @@ describe("401 challenge — delegated to the SDK", () => {
   it("names the error and carries an OAuth error body", async () => {
     const handler = createMcpHttpHandler({
       authorizationServer: "https://auth.example.com",
-      createServer: () => makeServer(),
+      createServer: () => pingServer(),
     });
 
     const res = await handler(req());
