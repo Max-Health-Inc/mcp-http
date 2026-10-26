@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { forwardBearer } from "../src/fetch.js";
 import { createWorkerFetch } from "../src/index.js";
-import { McpServer } from "@modelcontextprotocol/server";
+import { emptyServer } from "./helpers/server.js";
 
 // ---------------------------------------------------------------------------
 // forwardBearer
@@ -108,7 +108,7 @@ describe("createWorkerFetch", () => {
   it("returns a function", () => {
     const workerFetch = createWorkerFetch({
       authorizationServer: AS,
-      createServer: () => new McpServer({ name: "test", version: "0.0.1" }),
+      createServer: () => emptyServer(),
     });
     expect(typeof workerFetch).toBe("function");
   });
@@ -116,7 +116,7 @@ describe("createWorkerFetch", () => {
   it("returns 200 for /.well-known/oauth-protected-resource", async () => {
     const workerFetch = createWorkerFetch({
       authorizationServer: AS,
-      createServer: () => new McpServer({ name: "test", version: "0.0.1" }),
+      createServer: () => emptyServer(),
     });
     const res = await workerFetch(
       new Request("https://worker.example.com/.well-known/oauth-protected-resource"),
@@ -127,7 +127,7 @@ describe("createWorkerFetch", () => {
   it("forwards waitUntil from the context when provided", async () => {
     const workerFetch = createWorkerFetch({
       authorizationServer: AS,
-      createServer: () => new McpServer({ name: "test", version: "0.0.1" }),
+      createServer: () => emptyServer(),
     });
     // Just verify no error is thrown when ctx.waitUntil is provided
     const res = await workerFetch(
@@ -141,7 +141,7 @@ describe("createWorkerFetch", () => {
   it("does not include waitUntil in platform ctx when ctx is undefined", async () => {
     const workerFetch = createWorkerFetch({
       authorizationServer: AS,
-      createServer: () => new McpServer({ name: "test", version: "0.0.1" }),
+      createServer: () => emptyServer(),
     });
     const res = await workerFetch(
       new Request("https://worker.example.com/.well-known/oauth-protected-resource"),

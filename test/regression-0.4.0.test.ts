@@ -1,31 +1,18 @@
 import { describe, it, expect } from "bun:test";
 import { Hono } from "hono";
-import { McpServer } from "@modelcontextprotocol/server";
+import { pingServer, MODERN_META } from "./helpers/server.js";
 import { mcpHono } from "../hono/index.js";
 import { createMcpHttpHandler } from "../src/index.js";
 import { handleMcpPost } from "../src/transport.js";
 
 /** Contracts 0.4.0 changed that line coverage does not pin. */
 
-function makeServer(): McpServer {
-  const server = new McpServer({ name: "regression", version: "0.0.1" });
-  server.registerTool("ping", { description: "ping" }, () =>
-    Promise.resolve({ content: [{ type: "text" as const, text: "pong" }] }),
-  );
-  return server;
-}
-
-const META = {
-  "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-  "io.modelcontextprotocol/clientCapabilities": {},
-};
-
 function modernCall(id: number): unknown {
   return {
     jsonrpc: "2.0",
     id,
     method: "tools/call",
-    params: { name: "ping", arguments: {}, _meta: META },
+    params: { name: "ping", arguments: {}, _meta: MODERN_META },
   };
 }
 
@@ -57,7 +44,7 @@ describe("mcpHono — platform context", () => {
             env: ctx.env,
             hasRequest: ctx.request instanceof Request,
           });
-          return makeServer();
+          return pingServer();
         },
       }),
     );
@@ -92,7 +79,7 @@ describe("mcpHono — platform context", () => {
           // Yield so the requests overlap.
           await new Promise((r) => setTimeout(r, 10));
           seen.push({ token, env: (ctx.env as { TENANT: string }).TENANT });
-          return makeServer();
+          return pingServer();
         },
       }),
     );
@@ -145,7 +132,7 @@ describe("mcpHono — platform context", () => {
         mcpHono({
           authorizationServer: "https://auth.example.com",
           discoverAuthorizationServer: true,
-          createServer: () => makeServer(),
+          createServer: () => pingServer(),
         }),
       );
 
@@ -172,7 +159,7 @@ describe("mcpHono — platform context", () => {
 describe("createMcpHttpHandler — layer survives delegation", () => {
   it("applies CORS to the delegated MCP response", async () => {
     const handler = createMcpHttpHandler({
-      createServer: () => makeServer(),
+      createServer: () => pingServer(),
       cors: { origin: "https://app.example.com" },
     });
 
@@ -194,7 +181,7 @@ describe("createMcpHttpHandler — layer survives delegation", () => {
   it("reports the delegated request through onRequest", async () => {
     const events: Array<{ outcome: string; status: number }> = [];
     const handler = createMcpHttpHandler({
-      createServer: () => makeServer(),
+      createServer: () => pingServer(),
       onRequest: (e) => {
         events.push({ outcome: e.outcome, status: e.status });
       },
@@ -222,7 +209,7 @@ describe("createMcpHttpHandler — layer survives delegation", () => {
 describe("handleMcpPost — streaming response lifecycle", () => {
   it("delivers the full body of a streamed response", async () => {
     const res = await handleMcpPost({
-      createServer: makeServer,
+      createServer: pingServer,
       req: new Request("https://api.example.com/mcp", {
         method: "POST",
         headers: mcpHeaders(),
@@ -244,7 +231,7 @@ describe("handleMcpPost — streaming response lifecycle", () => {
 
     try {
       const res = await handleMcpPost({
-        createServer: makeServer,
+        createServer: pingServer,
         req: new Request("https://api.example.com/mcp", {
           method: "POST",
           headers: mcpHeaders(),
