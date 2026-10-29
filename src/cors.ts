@@ -1,11 +1,7 @@
 import type { CorsOptions } from "./types.js";
 import { allowedMethodsFor, allowMethodsValue } from "./routes.js";
 
-/**
- * Request headers a browser-hosted MCP client sends, for `Access-Control-Allow-Headers`.
- * None are CORS-safelisted, so omitting any of them fails that client's preflight.
- * Per-tool `Mcp-Param-*` headers are admitted by prefix on top of this list.
- */
+/** Request headers a browser MCP client sends; none are CORS-safelisted, so each must be allowed. */
 export const MCP_REQUEST_HEADERS = [
   "Content-Type",
   "Authorization",
@@ -13,36 +9,20 @@ export const MCP_REQUEST_HEADERS = [
   // Required POST headers as of 2026-07-28. Request headers, so not exposed.
   "Mcp-Method",
   "Mcp-Name",
-  // 2025-era: the spec says ignore, not reject. Omitting them fails preflight,
-  // which would block the legacy clients we still serve.
+  // 2025-era headers: still allowed so legacy clients pass preflight.
   "Mcp-Session-Id",
   "Last-Event-ID",
 ] as const;
 
-/**
- * Response headers a browser-hosted client must read, for `Access-Control-Expose-Headers`.
- * Clients MUST take `resource_metadata` from a 401's `WWW-Authenticate` when present.
- */
+/** Response headers a browser client must read; it MUST take `resource_metadata` from a 401's `WWW-Authenticate`. */
 export const MCP_EXPOSED_RESPONSE_HEADERS = ["WWW-Authenticate"] as const;
 
-/**
- * Prefix for the per-tool parameter headers introduced by SEP-2243.
- *
- * A server may mirror any tool parameter into `Mcp-Param-{Name}`, and a
- * conforming client MUST send it. The names are chosen per tool at runtime, so
- * no fixed list can cover them — they are admitted by prefix instead.
- */
+/** Prefix of the SEP-2243 per-tool `Mcp-Param-{Name}` headers, admitted by prefix since names vary per tool. */
 export const MCP_PARAM_HEADER_PREFIX = "mcp-param-";
 
 const DEFAULT_MAX_AGE = 600;
 
-/**
- * Resolve `Access-Control-Allow-Headers` for a request.
- *
- * Returns the static list, plus any `Mcp-Param-*` headers the client asked for
- * in `Access-Control-Request-Headers`. Only the documented prefix is echoed —
- * arbitrary requested headers are not reflected.
- */
+/** Static allow-list plus requested `Mcp-Param-*` headers; other requested headers are never reflected. */
 function resolveAllowHeaders(req: Request, options: CorsOptions): string {
   const base: string[] = [...MCP_REQUEST_HEADERS, ...(options.allowHeaders ?? [])];
 
@@ -65,15 +45,8 @@ function resolveAllowHeaders(req: Request, options: CorsOptions): string {
 }
 
 /**
- * Whether the configured policy permits this request's `Origin`.
- *
- * Distinct from {@link resolveOrigin}, which answers what header to emit. A
- * disallowed origin must be refused outright, not merely denied the header: the
- * request would otherwise still execute and only its response be unreadable,
- * which is the DNS-rebinding case the spec requires a `403` for.
- *
- * An absent `Origin` is allowed — that is a non-browser caller, and the header
- * is what browsers attach.
+ * Whether the policy permits this request's `Origin`; an absent `Origin` (non-browser caller) is allowed.
+ * A disallowed origin gets a 403, since withholding the header alone still runs the request (DNS rebinding).
  */
 export function isOriginAllowed(req: Request, options: CorsOptions): boolean {
   const requestOrigin = req.headers.get("Origin");
@@ -95,7 +68,6 @@ function resolveOrigin(req: Request, origin: CorsOptions["origin"]): string | nu
   if (typeof origin === "string") return origin;
   if (typeof origin === "function") return origin(req);
 
-  // Array of allowed origins — echo back the request origin if matched
   const requestOrigin = req.headers.get("Origin");
   if (requestOrigin !== null && origin.includes(requestOrigin)) {
     return requestOrigin;
@@ -116,19 +88,10 @@ function withVaryField(vary: string | null, field: string): string {
 }
 
 /**
- * Apply CORS headers to an existing (mutable) `Headers` instance.
- *
- * Call this on every response, including error responses, so that browser
- * clients can read the error body.
- *
- * @throws {Error} When `credentials: true` is combined with a wildcard origin
- * (`"*"` or `undefined`). Browsers reject this combination (RFC 6454 / Fetch
- * spec), and emitting both headers is misleading to non-browser clients.
- * Use an explicit origin string or array when `credentials: true`.
+ * Apply CORS headers to a mutable `Headers`; call it on error responses too.
+ * @throws {Error} When `credentials: true` is combined with a wildcard origin, which browsers reject.
  */
 export function applyCors(headers: Headers, req: Request, options: CorsOptions): void {
-  // Guard: credentials:true + wildcard origin is spec-invalid and silently
-  // broken in browsers — fail loudly so misconfiguration is caught early.
   if (
     options.credentials === true &&
     (options.origin === "*" || options.origin === undefined)
@@ -156,7 +119,6 @@ export function applyCors(headers: Headers, req: Request, options: CorsOptions):
     ...MCP_EXPOSED_RESPONSE_HEADERS,
     ...(options.exposeHeaders ?? []),
   ];
-  // Omit the header entirely rather than emitting a bare empty value.
   if (exposeHeaders.length > 0) {
     headers.set("Access-Control-Expose-Headers", exposeHeaders.join(", "));
   }
@@ -164,19 +126,13 @@ export function applyCors(headers: Headers, req: Request, options: CorsOptions):
 
 /** Route context needed to advertise accurate preflight methods. */
 export interface PreflightRouteOptions {
-  /** Path the MCP endpoint is mounted on. Defaults to `/mcp`. */
+  /** Defaults to `/mcp`. */
   mcpPath?: string;
 }
 
 /**
- * Build a `Response` for an HTTP OPTIONS preflight request.
- *
- * `Access-Control-Allow-Methods` is derived per route from the same table the
- * request handler uses for its `405` `Allow` header, so preflight never
- * advertises a method the endpoint would reject.
- *
- * Returns `null` when CORS is disabled (`false`) — the caller should treat a
- * `null` result as a normal request to be routed.
+ * Build the OPTIONS preflight `Response`, or `null` when CORS is disabled.
+ * Allowed methods come from the same route table as the `405` `Allow` header.
  */
 export function handlePreflight(
   req: Request,
