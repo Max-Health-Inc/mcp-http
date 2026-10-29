@@ -1,24 +1,12 @@
-/**
- * Pure, dependency-free JWT utilities.
- *
- * These functions perform BASE64URL decoding and JSON parsing only —
- * they do NOT verify signatures or validate claims beyond `exp`.
- * Signature verification is intentionally delegated to the upstream API.
- */
+/** Decoding only, no signature verification: the upstream API stays the authoritative validator. */
 
-/** Clock-skew buffer applied to `exp` checks (in seconds). */
 const CLOCK_SKEW_SECONDS = 30;
 
-/**
- * Extract the Bearer token string from an `Authorization` header value.
- *
- * Returns `null` when the header is absent, not a Bearer scheme, or the
- * token portion is empty after trimming.
- */
+/** Extract the Bearer token from an `Authorization` header, or `null` when absent, another scheme, or empty. */
 export function extractBearer(authorizationHeader: string | null): string | null {
   if (!authorizationHeader) return null;
   const trimmed = authorizationHeader.trim();
-  // Case-insensitive prefix match per RFC 6750 §2.1
+  // Case-insensitive per RFC 6750 §2.1
   if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
   const token = trimmed.slice("bearer ".length).trim();
   return token.length > 0 ? token : null;
@@ -29,15 +17,7 @@ interface JwtPayload {
   [key: string]: unknown;
 }
 
-/**
- * Decode the payload segment of a JWT without verifying the signature.
- *
- * Returns `null` when the token is structurally invalid (not three dot-separated
- * segments, non-base64url payload, non-UTF-8 payload, non-JSON payload).
- *
- * Decoding is not verifying. Deliberately unexported so an unverified claim
- * cannot reach an authorization decision; only {@link isJwtExpired} reads it.
- */
+/** Unverified payload decode; unexported so an unverified claim never reaches an authorization decision. */
 function decodeJwtPayload(token: string): JwtPayload | null {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
@@ -45,8 +25,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   const payloadSegment = parts[1];
   if (!payloadSegment) return null;
 
-  // atob yields latin1, so a multi-byte claim decodes as mojibake. Decode the
-  // bytes as UTF-8 instead; `fatal` rejects a malformed payload outright.
+  // atob yields latin1; decode the bytes as strict UTF-8 instead.
   const base64 = payloadSegment.replace(/-/g, "+").replace(/_/g, "/");
   let jsonStr: string;
   try {
@@ -68,15 +47,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   }
 }
 
-/**
- * Check whether a JWT's `exp` claim is in the past.
- *
- * - Returns `false` (not expired) when the token is opaque, structurally
- *   malformed, or has no `exp` claim — callers should let the upstream API
- *   decide in those cases.
- * - Returns `true` only when a numeric `exp` value is definitively in the
- *   past (accounting for {@link CLOCK_SKEW_SECONDS}).
- */
+/** True only when a numeric `exp` is past the skew buffer; opaque, malformed or exp-less tokens return false. */
 export function isJwtExpired(token: string): boolean {
   const payload = decodeJwtPayload(token.trim());
   if (payload === null) return false;

@@ -1,24 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 
-// ---------------------------------------------------------------------------
-// OAuth / RFC 8414 + RFC 9728 metadata shapes
-// ---------------------------------------------------------------------------
-
 /** RFC 9728 §3 — Protected Resource Metadata document. */
 export interface ProtectedResourceMetadata {
-  /** The resource server's own URL (derived from the inbound request origin). */
   resource: string;
-  /** List of Authorization Server issuer URLs that protect this resource. */
   authorization_servers: string[];
-  /** Supported bearer token types. */
   bearer_methods_supported?: string[];
-  /** Supported scopes. */
   scopes_supported?: string[];
-  /** Supported signing algorithms for resource indications. */
   resource_signing_alg_values_supported?: string[];
-  /** URL of the resource's documentation. */
   resource_documentation?: string;
-  /** Human-readable name. */
   resource_name?: string;
 }
 
@@ -39,31 +28,17 @@ export interface AuthorizationServerMetadata {
   [key: string]: unknown;
 }
 
-// ---------------------------------------------------------------------------
-// Platform context passed into createServer
-// ---------------------------------------------------------------------------
-
+/** Platform context passed into `createServer`. */
 export interface PlatformCtx<Env = unknown> {
-  /** The original inbound request. */
   request: Request;
-  /** Platform-specific environment bindings (Workers/Pages `env`, etc.). */
   env?: Env;
-  /** Cloudflare / edge `waitUntil` for background work. */
   waitUntil?: (promise: Promise<unknown>) => void;
 }
-
-// ---------------------------------------------------------------------------
-// CORS configuration
-// ---------------------------------------------------------------------------
 
 export type CorsOriginFn = (req: Request) => string | null;
 
 export interface CorsOptions {
-  /**
-   * Allowed origin(s). Accepts a static string, an array of strings,
-   * or a function that returns the allowed origin (or null to omit the header).
-   * Default: `"*"`.
-   */
+  /** Allowed origin(s); a function may return null to omit the header. Default: `"*"`. */
   origin?: string | string[] | CorsOriginFn;
   /** Whether to send `Access-Control-Allow-Credentials: true`. Default: false. */
   credentials?: boolean;
@@ -74,10 +49,6 @@ export interface CorsOptions {
   /** Additional response headers to expose beyond the MCP defaults. */
   exposeHeaders?: string[];
 }
-
-// ---------------------------------------------------------------------------
-// Observability hooks
-// ---------------------------------------------------------------------------
 
 export type McpRequestOutcome =
   | "ok"
@@ -93,102 +64,52 @@ export type McpRequestOutcome =
 export interface McpRequestEvent {
   request: Request;
   outcome: McpRequestOutcome;
-  /** HTTP status code of the response. */
   status: number;
-  /** Duration in milliseconds. */
   durationMs: number;
   /** The error that caused an `"error"` outcome, if any. */
   error?: unknown;
 }
 
-// ---------------------------------------------------------------------------
-// Handler configuration
-// ---------------------------------------------------------------------------
-
 export interface McpHttpHandlerConfig<Env = unknown> {
   /**
-   * Base URL of the external OAuth Authorization Server (the issuer).
-   * Used to populate `authorization_servers` in the protected-resource
-   * metadata doc and optionally to proxy AS metadata.
-   *
-   * Omit (or set to `undefined`) for fully public, unauthenticated endpoints.
-   * When absent the Bearer gate is skipped, `createServer` receives `null` as
-   * the token, and the RFC 9728 well-known routes return 404.
+   * Issuer base URL of the external OAuth Authorization Server.
+   * Omit for public endpoints: no Bearer gate, `createServer` gets `null`, well-known routes 404.
    */
   authorizationServer?: string;
 
-  /**
-   * Path the MCP endpoint listens on. Must start with `/`.
-   * Default: `"/mcp"`.
-   */
+  /** Path the MCP endpoint listens on; must start with `/`. Default: `"/mcp"`. */
   mcpPath?: string;
 
-  /**
-   * Factory invoked per-request after Bearer extraction.
-   * May be async. Receives the raw Bearer token string (or `null` for public
-   * endpoints where `authorizationServer` is not configured) and platform context.
-   */
+  /** Per-request server factory; receives the raw Bearer token, or `null` without `authorizationServer`. */
   createServer: (
     bearerToken: string | null,
     ctx: PlatformCtx<Env>,
   ) => McpServer | Promise<McpServer>;
 
-  /**
-   * When provided, serves this document verbatim at
-   * `GET /.well-known/oauth-authorization-server`.
-   *
-   * Takes precedence over `discoverAuthorizationServer`.
-   */
+  /** Served verbatim at `/.well-known/oauth-authorization-server`; wins over `discoverAuthorizationServer`. */
   authorizationServerMetadata?: AuthorizationServerMetadata;
 
-  /**
-   * When `true`, mcp-http fetches the AS metadata document from
-   * `{authorizationServer}/.well-known/oauth-authorization-server` on first
-   * request and proxies it at the same well-known path.
-   *
-   * The result is cached on success. Failed fetches are not cached — the next
-   * request will retry. Ignored when `authorizationServerMetadata` is set.
-   *
-   * Default: `false`.
-   */
+  /** Fetch and proxy the AS metadata document on first request; successes are cached, failures retried. Default: `false`. */
   discoverAuthorizationServer?: boolean;
 
-  /**
-   * Extra fields merged into the protected-resource metadata response.
-   * `resource` and `authorization_servers` cannot be overridden.
-   */
+  /** Extra fields merged into the protected-resource metadata; `resource` and `authorization_servers` cannot be overridden. */
   protectedResourceMetadata?: Partial<
     Omit<ProtectedResourceMetadata, "resource" | "authorization_servers">
   >;
 
   /**
-   * Reject tokens whose decoded `exp` claim is in the past (with a 30-second
-   * clock-skew buffer) before touching the upstream API.
-   *
-   * This is a latency optimisation, **not a security control** — the upstream
-   * API is still the authoritative validator.
-   *
-   * Set to `false` for opaque (non-JWT) tokens. Default: `true`.
+   * Reject JWTs past `exp` (30 s skew) before the upstream call. A latency optimisation, not a security control.
+   * Set to `false` for opaque tokens. Default: `true`.
    */
   earlyRejectExpiredTokens?: boolean;
 
-  /**
-   * CORS configuration. Set to `false` to disable CORS headers entirely.
-   * Default: permissive (`"*"`) with all MCP-required headers.
-   */
+  /** CORS configuration, or `false` to disable. Default: `"*"` with all MCP headers. */
   cors?: false | CorsOptions;
 
-  /**
-   * Observability hook called once per request with the final outcome.
-   * Errors thrown here are swallowed so they never affect the response.
-   */
+  /** Called once per request with the outcome; errors thrown here are swallowed. */
   onRequest?: (event: McpRequestEvent) => void | Promise<void>;
 
-  /**
-   * Error hook called when an unhandled exception occurs during transport.
-   * Return a `Response` to override the default JSON-RPC 500 error body.
-   * Default: `console.error`.
-   */
+  /** Called on an unhandled transport error; return a `Response` to replace the JSON-RPC 500. Default: `console.error`. */
   onError?: (
     err: unknown,
     req: Request,
