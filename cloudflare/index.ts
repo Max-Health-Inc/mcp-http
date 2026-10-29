@@ -1,35 +1,9 @@
-/**
- * Cloudflare Pages Functions adapter for @maxhealth.tech/mcp-http.
- *
- * Use a **catch-all** Pages Function (`functions/[[path]].ts`) so that both
- * `/mcp` and `/.well-known/*` resolve through this handler and the RFC 9728
- * well-known documents are reachable at the origin root.
- *
- * @example
- * ```ts
- * // functions/[[path]].ts
- * import { mcpPagesFunction } from '@maxhealth.tech/mcp-http/cloudflare';
- * import { forwardBearer } from '@maxhealth.tech/mcp-http';
- *
- * export const onRequest = mcpPagesFunction({
- *   authorizationServer: 'https://auth.example.com',
- *   createServer: (token, { env }) => buildMyMcpServer({
- *     fetchFn: forwardBearer(token),
- *     fhirUrl: (env as Env).FHIR_BASE_URL,
- *   }),
- * });
- * ```
- */
+/** Cloudflare Pages adapter. Mount as a catch-all `functions/[[path]].ts` so `/.well-known/*` resolves at the origin root (RFC 9728). */
 
 import { createMcpHttpHandler } from "../src/index.js";
 import type { McpHttpHandlerConfig } from "../src/types.js";
 
-/**
- * Minimal interface for the Cloudflare Pages `EventContext` object.
- *
- * Typed loosely so this adapter doesn't pull in `@cloudflare/workers-types`
- * as a hard dependency (consumers supply their own env types).
- */
+/** Minimal Pages `EventContext`, so `@cloudflare/workers-types` stays out of the dependency tree. */
 export interface PagesFunctionEventContext<Env = unknown> {
   request: Request;
   env: Env;
@@ -44,17 +18,7 @@ export type PagesOnRequestHandler<Env = unknown> = (
   context: PagesFunctionEventContext<Env>,
 ) => Response | Promise<Response>;
 
-/**
- * Wrap a handler config into a Cloudflare Pages Function `onRequest` export.
- *
- * The adapter unwraps the Pages `EventContext` and forwards:
- * - `request` → the raw `Request`
- * - `env` → the Pages `env` bindings object
- * - `waitUntil` → the Pages `waitUntil` helper
- *
- * The generic `Env` parameter lets consumers type `env` without importing
- * Cloudflare-specific types in their app code.
- */
+/** Wrap a handler config into a Cloudflare Pages Function `onRequest` export. */
 export function mcpPagesFunction<Env = unknown>(
   config: McpHttpHandlerConfig<Env>,
 ): PagesOnRequestHandler<Env> {
