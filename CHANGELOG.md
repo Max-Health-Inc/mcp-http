@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A discovered authorization server document without an `issuer` is no longer proxied or cached.** `discoverAuthorizationServer` served any JSON body the AS returned with a 200, an array or an error object included, and cached it for five minutes. It now answers 502, as it does for an unreachable AS, and retries on the next request.
+- **`createMcpHttpHandler<Env>` and `createWorkerFetch<Env>` type the platform context with `Env`.** The returned handler accepted a context whose `env` was `unknown`, so `createServer` received an `env` typed as `Env` that nothing had checked. `createWorkerFetch` also no longer sets `env: undefined` when the Worker passes no environment.
+
+### Internal
+
+- The Hono adapter finds the request's `Context` through the request itself instead of asserting the platform context's type, and the last `as` assertions in `src/` are gone.
+
 ## [0.7.0] — 2026-10-15
 
 ### Added

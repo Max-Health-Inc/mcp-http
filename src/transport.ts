@@ -60,8 +60,8 @@ export async function handleMcpPost(options: HandleMcpPostOptions): Promise<Resp
     }
 
     // Still being written when `fetch` resolves; close once it drains.
-    if (res.body instanceof ReadableStream) {
-      const original = res.body as ReadableStream<Uint8Array>;
+    const original = res.body;
+    if (original !== null) {
       const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
       // A disconnect rejects the pipe and `.finally()` re-raises it; swallow both.
       void original

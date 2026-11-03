@@ -25,18 +25,19 @@ export type McpHonoConfig<E extends Env = Env> = Omit<
 export function mcpHono<E extends Env = Env>(config: McpHonoConfig<E>): Hono<E> {
   const app = new Hono<E>();
 
-  const handler = createMcpHttpHandler({
+  const contexts = new WeakMap<Request, Context<E>>();
+  const handler = createMcpHttpHandler<E["Bindings"]>({
     ...config,
-    // Sound by construction: the route below always supplies `c`.
-    createServer: (token: string | null, ctx: PlatformCtx) =>
-      config.createServer(token, ctx as HonoPlatformCtx<E>),
+    createServer: (token: string | null, ctx: PlatformCtx<E["Bindings"]>) => {
+      const c = contexts.get(ctx.request);
+      if (c === undefined) throw new Error("[mcp-http] no Hono context for this request");
+      return config.createServer(token, { ...ctx, c });
+    },
   });
 
   app.all("*", (c: Context<E>) => {
-    const platformCtx: Omit<PlatformCtx<E["Bindings"]>, "request"> & {
-      c: Context<E>;
-    } = { env: c.env, c };
-    return handler(c.req.raw, platformCtx);
+    contexts.set(c.req.raw, c);
+    return handler(c.req.raw, { env: c.env });
   });
 
   return app;
