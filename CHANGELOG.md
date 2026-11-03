@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-11-03
+
 ### Fixed
 
 - **A discovered authorization server document without an `issuer` is no longer proxied or cached.** `discoverAuthorizationServer` served any JSON body the AS returned with a 200, an array or an error object included, and cached it for five minutes. It now answers 502, as it does for an unreachable AS, and retries on the next request.
@@ -252,7 +254,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.4.1...v0.5.0
