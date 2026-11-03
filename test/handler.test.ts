@@ -1,4 +1,4 @@
-import { describe, it, expect, mock } from "bun:test";
+import { describe, it, expect, mock, spyOn } from "bun:test";
 import { emptyServer } from "./helpers/server.js";
 import { createMcpHttpHandler } from "../src/index.js";
 import type { McpHttpHandlerConfig } from "../src/types.js";
@@ -239,6 +239,30 @@ describe("GET /.well-known/oauth-authorization-server — discoverAuthorizationS
       expect(res.status).toBe(502);
     } finally {
       globalThis.fetch = origFetch;
+    }
+  });
+
+  it.serial("returns 502 and does not cache a document without an issuer", async () => {
+    const document = () =>
+      new Response(JSON.stringify({ token_endpoint: `${AS}/token` }));
+    const fetchSpy = spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(document())
+      .mockResolvedValueOnce(document());
+    try {
+      const handler = createMcpHttpHandler(
+        makeConfig({ discoverAuthorizationServer: true }),
+      );
+      const first = await handler(
+        makeReq("/.well-known/oauth-authorization-server", "GET"),
+      );
+      const second = await handler(
+        makeReq("/.well-known/oauth-authorization-server", "GET"),
+      );
+      expect(first.status).toBe(502);
+      expect(second.status).toBe(502);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
     }
   });
 

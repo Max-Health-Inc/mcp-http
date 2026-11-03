@@ -100,7 +100,43 @@ describe("mcpHono integration", () => {
       }),
     );
     expect(res.status).toBe(200);
-    // Mark token as captured for downstream assertions (unused in simplified test)
+  });
+
+  it("hands createServer the Hono context of the request it serves", async () => {
+    const seen: Array<{ path: string; sameRequest: boolean }> = [];
+    const ctxApp = new Hono();
+    ctxApp.route(
+      "/",
+      mcpHono({
+        authorizationServer: AS,
+        createServer: (_token, ctx) => {
+          seen.push({ path: ctx.c.req.path, sameRequest: ctx.c.req.raw === ctx.request });
+          return emptyServer();
+        },
+      }),
+    );
+    const res = await ctxApp.fetch(
+      new Request(`${BASE}/mcp`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${validJwt()}`,
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-11-25",
+            capabilities: {},
+            clientInfo: { name: "test-client", version: "0.0.1" },
+          },
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(seen).toEqual([{ path: "/mcp", sameRequest: true }]);
   });
 
   // ---- CORS ----------------------------------------------------------------

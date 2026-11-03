@@ -5,6 +5,7 @@ import type {
   McpRequestOutcome,
   AuthorizationServerMetadata,
 } from "./types.js";
+import { isAuthorizationServerMetadata } from "./types.js";
 import { applyCors, handlePreflight, isOriginAllowed } from "./cors.js";
 import { extractBearer, isJwtExpired } from "./jwt.js";
 import { handleMcpPost } from "./transport.js";
@@ -56,9 +57,9 @@ function unauthorizedResponse(
   });
 }
 
-export type McpHandler = (
+export type McpHandler<Env = unknown> = (
   req: Request,
-  platformCtx?: Omit<PlatformCtx, "request">,
+  platformCtx?: Omit<PlatformCtx<Env>, "request">,
 ) => Promise<Response>;
 
 /**
@@ -70,7 +71,7 @@ export type McpHandler = (
  */
 export function buildHandler<Env = unknown>(
   config: McpHttpHandlerConfig<Env>,
-): McpHandler {
+): McpHandler<Env> {
   const mcpPath = config.mcpPath ?? DEFAULT_MCP_PATH;
   // RFC 9728 §3.1 path-aware metadata route derived from the mount point.
   const prmPath = protectedResourcePath(mcpPath);
@@ -113,7 +114,8 @@ export function buildHandler<Env = unknown>(
       .fetch(url)
       .then(async (r) => {
         if (!r.ok) return null;
-        return (await r.json()) as AuthorizationServerMetadata;
+        const body: unknown = await r.json();
+        return isAuthorizationServerMetadata(body) ? body : null;
       })
       .catch(() => null)
       .then((result) => {
@@ -130,7 +132,7 @@ export function buildHandler<Env = unknown>(
 
   return async (
     req: Request,
-    platformCtx?: Omit<PlatformCtx, "request">,
+    platformCtx?: Omit<PlatformCtx<Env>, "request">,
   ): Promise<Response> => {
     const start = Date.now();
     let outcome: McpRequestOutcome = "ok";
@@ -287,7 +289,7 @@ export function buildHandler<Env = unknown>(
         }
       }
 
-      const ctx: PlatformCtx<Env> = { request: req, ...platformCtx } as PlatformCtx<Env>;
+      const ctx: PlatformCtx<Env> = { request: req, ...platformCtx };
 
       // The factory is handed to the SDK rather than invoked here: it calls it
       // once per serving unit, per era. A throw from it surfaces through

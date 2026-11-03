@@ -12,13 +12,8 @@ export function extractBearer(authorizationHeader: string | null): string | null
   return token.length > 0 ? token : null;
 }
 
-interface JwtPayload {
-  exp?: unknown;
-  [key: string]: unknown;
-}
-
 /** Unverified payload decode; unexported so an unverified claim never reaches an authorization decision. */
-function decodeJwtPayload(token: string): JwtPayload | null {
+function decodeJwtPayload(token: string): object | null {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
 
@@ -41,7 +36,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       return null;
     }
-    return parsed as JwtPayload;
+    return parsed;
   } catch {
     return null;
   }

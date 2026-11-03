@@ -58,7 +58,7 @@ export type { McpHandler };
  */
 export function createMcpHttpHandler<Env = unknown>(
   config: McpHttpHandlerConfig<Env>,
-): McpHandler {
+): McpHandler<Env> {
   if (config.authorizationServer !== undefined) {
     try {
       new URL(config.authorizationServer);
@@ -91,7 +91,8 @@ export function createWorkerFetch<Env = unknown>(
     env?: Env,
     ctx?: { waitUntil?: (p: Promise<unknown>) => void },
   ): Promise<Response> => {
-    const platformCtx: Omit<PlatformCtx, "request"> = { env };
+    const platformCtx: Omit<PlatformCtx<Env>, "request"> = {};
+    if (env !== undefined) platformCtx.env = env;
     if (ctx?.waitUntil !== undefined) {
       platformCtx.waitUntil = ctx.waitUntil;
     }
