@@ -28,6 +28,19 @@ export interface AuthorizationServerMetadata {
   [key: string]: unknown;
 }
 
+/** An RFC 8414 document needs at least its `issuer`; anything else is not proxied or cached. */
+export function isAuthorizationServerMetadata(
+  value: unknown,
+): value is AuthorizationServerMetadata {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    "issuer" in value &&
+    typeof value.issuer === "string"
+  );
+}
+
 /** Platform context passed into `createServer`. */
 export interface PlatformCtx<Env = unknown> {
   request: Request;
