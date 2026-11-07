@@ -1,58 +1,24 @@
 name: Publish
 
+# Dispatched by release.yml at the tag it pushed. A version below npm's `latest` (a backport
+# from a release/* line) is published under the `legacy` dist-tag.
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
 jobs:
   publish:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - run: bun install --frozen-lockfile
-
-      - name: Test
-        run: bun test
-
-      - name: Build
-        run: bun run build
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-
-      # `npm publish` moves the `latest` dist-tag to whatever it just published,
-      # by recency and not by version order. Publishing a backport would
-      # therefore hand new installs the older line. Pick the tag by comparing
-      # against what `latest` currently points at.
-      - name: Resolve npm dist-tag
-        id: disttag
-        run: |
-          PACKAGE_NAME=$(jq -r .name package.json)
-          VERSION=$(jq -r .version package.json)
-          CURRENT=$(npm view "$PACKAGE_NAME" version 2>/dev/null || echo "0.0.0")
-
-          HIGHEST=$(printf '%s\n%s\n' "$CURRENT" "$VERSION" | sort -V | tail -1)
-          if [ "$VERSION" = "$CURRENT" ] || [ "$HIGHEST" = "$VERSION" ]; then
-            TAG=latest
-          else
-            TAG=legacy
-          fi
-
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Publishing $VERSION under dist-tag '$TAG' (latest is currently $CURRENT)"
-          echo "### Publishing ${PACKAGE_NAME}@${VERSION} as \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Publish to npm (uses npx npm@latest for OIDC trusted publishing)
-        run: npx npm@latest publish --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
+    uses: max-network/.github/.github/workflows/publish-package.yml@main
+    with:
+      runtime: bun
+      node-version: "24"
+      scope: "@maxhealth.tech"
+      registry: https://registry.npmjs.org
+      check-steps: "check"
