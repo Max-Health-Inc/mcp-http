@@ -35,3 +35,6 @@ jobs:
 
       - name: Verify dist
         run: test -f dist/src/index.js && test -f dist/hono/index.js && test -f dist/cloudflare/index.js
+
+  changelog:
+    uses: max-network/.github/.github/workflows/changelog-guard.yml@main
