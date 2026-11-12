@@ -44,13 +44,13 @@
     }
   },
   "devDependencies": {
-    "@modelcontextprotocol/server": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.4.0",
     "@types/bun": "^1.4.4",
-    "eslint": "^10.13.0",
-    "hono": "^4.13.14",
+    "eslint": "^10.14.0",
+    "hono": "^4.13.18",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.0"
+    "typescript-eslint": "^8.72.2"
   },
   "license": "MIT",
   "repository": {
