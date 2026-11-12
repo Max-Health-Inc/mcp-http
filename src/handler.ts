@@ -6,7 +6,7 @@ import type {
   AuthorizationServerMetadata,
 } from "./types.js";
 import { isAuthorizationServerMetadata } from "./types.js";
-import { applyCors, handlePreflight, isOriginAllowed } from "./cors.js";
+import { handlePreflight, isOriginAllowed, withCors } from "./cors.js";
 import { extractBearer, isJwtExpired } from "./jwt.js";
 import { handleMcpPost } from "./transport.js";
 import type { HandleMcpPostOptions } from "./transport.js";
@@ -22,23 +22,6 @@ import { DEFAULT_MCP_PATH, allowedMethodsFor, allowMethodsValue } from "./routes
 
 /** How long a successfully discovered AS metadata document is cached (ms). */
 const AS_METADATA_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-/** Attach CORS headers to any `Response`, returning a new `Response` with those headers merged. */
-function withCors(
-  res: Response,
-  req: Request,
-  config: Pick<McpHttpHandlerConfig, "cors">,
-): Response {
-  if (config.cors === false) return res;
-
-  const headers = new Headers(res.headers);
-  applyCors(headers, req, config.cors ?? {});
-  return new Response(res.body, {
-    status: res.status,
-    statusText: res.statusText,
-    headers,
-  });
-}
 
 /**
  * Build the 401 challenge, delegating the response shape to the SDK.
@@ -143,7 +126,7 @@ export function buildHandler<Env = unknown>(
     ): Promise<Response> => {
       outcome = o;
       const res = await resPromise;
-      const finalRes = withCors(res, req, config);
+      const finalRes = withCors(res, req, config.cors);
 
       if (config.onRequest) {
         try {

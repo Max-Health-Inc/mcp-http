@@ -124,10 +124,32 @@ export function applyCors(headers: Headers, req: Request, options: CorsOptions):
   }
 }
 
+/**
+ * A copy of `res` with the CORS headers merged in, or `res` itself when CORS is disabled.
+ * For responses produced outside `createMcpHttpHandler`, e.g. an OAuth server mounted beside it.
+ */
+export function withCors(
+  res: Response,
+  req: Request,
+  corsConfig: false | CorsOptions = {},
+): Response {
+  if (corsConfig === false) return res;
+
+  const headers = new Headers(res.headers);
+  applyCors(headers, req, corsConfig);
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
+}
+
 /** Route context needed to advertise accurate preflight methods. */
 export interface PreflightRouteOptions {
   /** Defaults to `/mcp`. */
   mcpPath?: string;
+  /** Methods for a route the MCP handler does not own, such as an OAuth endpoint; replaces the route table's. */
+  methods?: readonly string[];
 }
 
 /**
@@ -145,7 +167,7 @@ export function handlePreflight(
   applyCors(headers, req, corsConfig);
 
   const { pathname } = new URL(req.url);
-  const methods = allowedMethodsFor(pathname, options.mcpPath);
+  const methods = options.methods ?? allowedMethodsFor(pathname, options.mcpPath);
   headers.set("Access-Control-Allow-Methods", allowMethodsValue(methods, true));
   headers.set("Access-Control-Max-Age", String(corsConfig.maxAge ?? DEFAULT_MAX_AGE));
 
