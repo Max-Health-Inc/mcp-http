@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- Add new entries directly below. Keep this line: it makes a release merge conflict rather than file them under a published version. -->
+
+## [0.7.2] — 2026-11-12
+
 ### Added
 
 - **`withCors(response, req, cors?)`** returns a copy of a response with the CORS headers merged in, the way the handler treats its own responses. Hosts that serve other routes beside the MCP endpoint, such as an OAuth authorization server, no longer keep a copy of it.
@@ -259,7 +263,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.5.0...v0.6.0
