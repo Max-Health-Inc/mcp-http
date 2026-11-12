@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`withCors(response, req, cors?)`** returns a copy of a response with the CORS headers merged in, the way the handler treats its own responses. Hosts that serve other routes beside the MCP endpoint, such as an OAuth authorization server, no longer keep a copy of it.
+- **`handlePreflight` takes `methods`** for a route the MCP handler does not own. The route table only knows the MCP and well-known paths, so a preflight for `/token` advertised `OPTIONS` alone.
+
 ## [0.7.1] — 2026-11-03
 
 ### Fixed

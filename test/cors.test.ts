@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import {
   applyCors,
   handlePreflight,
+  withCors,
   MCP_EXPOSED_RESPONSE_HEADERS,
   MCP_PARAM_HEADER_PREFIX,
   MCP_REQUEST_HEADERS,
@@ -243,6 +244,49 @@ describe("handlePreflight", () => {
 
   it("returns null when cors is false", () => {
     expect(handlePreflight(optionsReq, false)).toBeNull();
+  });
+
+  it("advertises the given methods for a route the MCP handler does not own", () => {
+    const tokenReq = new Request("https://api.example.com/token", { method: "OPTIONS" });
+    expect(
+      handlePreflight(tokenReq, {})?.headers.get("Access-Control-Allow-Methods"),
+    ).toBe("OPTIONS");
+    const res = handlePreflight(tokenReq, {}, { methods: ["GET", "POST"] });
+    expect(res?.headers.get("Access-Control-Allow-Methods")).toBe("GET, POST, OPTIONS");
+  });
+});
+
+describe("withCors", () => {
+  const original = (): Response =>
+    new Response("body", {
+      status: 401,
+      statusText: "Unauthorized",
+      headers: { "X-Kept": "1" },
+    });
+
+  it("merges the CORS headers into a copy of the response", async () => {
+    const res = withCors(original(), makeReq("https://client.example"));
+    expect(res.status).toBe(401);
+    expect(res.statusText).toBe("Unauthorized");
+    expect(res.headers.get("X-Kept")).toBe("1");
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(res.headers.get("Access-Control-Expose-Headers")).toContain(
+      "WWW-Authenticate",
+    );
+    expect(await res.text()).toBe("body");
+  });
+
+  it("applies the given policy", () => {
+    const res = withCors(original(), makeReq("https://client.example"), {
+      origin: ["https://client.example"],
+    });
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://client.example");
+    expect(res.headers.get("Vary")).toContain("Origin");
+  });
+
+  it("returns the response untouched when cors is false", () => {
+    const res = original();
+    expect(withCors(res, makeReq("https://client.example"), false)).toBe(res);
   });
 });
 

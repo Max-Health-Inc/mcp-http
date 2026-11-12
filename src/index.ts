@@ -21,6 +21,7 @@ export {
   MCP_EXPOSED_RESPONSE_HEADERS,
   MCP_PARAM_HEADER_PREFIX,
   MCP_REQUEST_HEADERS,
+  withCors,
 } from "./cors.js";
 export type { PreflightRouteOptions } from "./cors.js";
 export { DEFAULT_MCP_PATH, allowedMethodsFor, allowMethodsValue } from "./routes.js";

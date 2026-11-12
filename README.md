@@ -181,7 +181,8 @@ import {
 
   // CORS
   applyCors, // (headers: Headers, req: Request, options: CorsOptions) => void
-  handlePreflight, // (req: Request, corsConfig: CorsOptions | false) => Response | null
+  handlePreflight, // (req: Request, corsConfig: CorsOptions | false, { mcpPath?, methods? }?) => Response | null
+  withCors, // (res: Response, req: Request, corsConfig?: CorsOptions | false) => Response
 
   // Well-known metadata
   buildProtectedResourceMetadata,
