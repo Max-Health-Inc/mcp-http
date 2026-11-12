@@ -32,7 +32,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "check": "bun run typecheck && bun run lint && bun run format:check && bun test --coverage && bun run build && node -e \"require('fs').existsSync('dist/src/index.js') || process.exit(1)\""
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun test --coverage && bun run build && bun run verify:dist",
+    "verify:dist": "node -e \"const m = ['src', 'hono', 'cloudflare'].map((d) => 'dist/' + d + '/index.js').filter((f) => !require('fs').existsSync(f)); if (m.length) { console.error('missing ' + m.join(', ')); process.exit(1) }\""
   },
   "peerDependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
