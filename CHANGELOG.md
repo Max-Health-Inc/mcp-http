@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Add new entries directly below. Keep this line: it makes a release merge conflict rather than file them under a published version. -->
 
+### Added
+
+- **`forwardBearer(token, fetchFn?)` wraps a given fetch.** The bearer can now be added on top of another fetch wrapper or a test double instead of only the global `fetch`, which is still the default and is still looked up per request.
+
 ## [0.7.2] — 2026-11-12
 
 ### Added
