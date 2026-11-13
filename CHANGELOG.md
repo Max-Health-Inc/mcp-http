@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Add new entries directly below. Keep this line: it makes a release merge conflict rather than file them under a published version. -->
 
+## [0.7.3] — 2026-11-13
+
 ### Added
 
 - **`forwardBearer(token, fetchFn?)` wraps a given fetch.** The bearer can now be added on top of another fetch wrapper or a test double instead of only the global `fetch`, which is still the default and is still looked up per request.
@@ -267,7 +269,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.6.0...v0.7.0
