@@ -96,6 +96,22 @@ describe("forwardBearer", () => {
 
     expect(called).toBe(true);
   });
+
+  it("sends through the fetch it was given instead of the global one", async () => {
+    const seen: string[] = [];
+    const inner = (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = input instanceof Request ? input.url : input.toString();
+      seen.push(`${url} ${new Headers(init?.headers).get("Authorization") ?? ""}`);
+      return Promise.resolve(new Response("ok"));
+    };
+
+    await forwardBearer("tok", inner)("https://api.example.com/resource");
+
+    expect(seen).toEqual(["https://api.example.com/resource Bearer tok"]);
+  });
 });
 
 // ---------------------------------------------------------------------------

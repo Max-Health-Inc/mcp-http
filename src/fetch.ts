@@ -15,7 +15,8 @@ export type FetchFn = (
 /**
  * Return a `fetch`-compatible function that automatically injects an
  * `Authorization: Bearer <token>` header into every outgoing request,
- * forwarding any existing headers from the caller.
+ * forwarding any existing headers from the caller. Requests go through
+ * `fetchFn` when given (a wrapped or test fetch), else the global `fetch`.
  *
  * **Security — SSRF / credential-exfiltration risk:**
  * The returned function forwards the caller's Bearer token to *any* URL it
@@ -25,10 +26,10 @@ export type FetchFn = (
  * hard-coded base URLs) and append only validated path segments or query
  * parameters.
  */
-export function forwardBearer(token: string): FetchFn {
+export function forwardBearer(token: string, fetchFn?: FetchFn): FetchFn {
   return (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const headers = new Headers(init?.headers);
     headers.set("Authorization", `Bearer ${token}`);
-    return fetch(input, { ...init, headers });
+    return (fetchFn ?? fetch)(input, { ...init, headers });
   };
 }
