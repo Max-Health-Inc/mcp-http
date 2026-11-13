@@ -12,7 +12,7 @@ Built on the **Web Fetch API** — runs on Cloudflare Workers, Pages Functions, 
 - **Bearer extraction + 401 gate** with `WWW-Authenticate` resource-metadata pointer
 - **JWT `exp` early-rejection** (configurable, 30 s clock-skew buffer)
 - **CORS** — permissive defaults (`*`), fully configurable per-origin, or disabled
-- **`forwardBearer(token)`** — inject the caller's token into upstream `fetch` calls
+- **`forwardBearer(token, fetchFn?)`** — inject the caller's token into upstream `fetch` calls, optionally on top of another fetch
 - **Observability** — `onRequest` hook with outcome, status, and duration
 - **Error handling** — `onError` hook with JSON-RPC 500 fallback
 - **Adapters** — first-class Hono and Cloudflare Pages Functions adapters
@@ -177,7 +177,7 @@ import {
   isJwtExpired, // (token: string) => boolean
 
   // Upstream fetch helper
-  forwardBearer, // (token: string) => FetchFn
+  forwardBearer, // (token: string, fetchFn?: FetchFn) => FetchFn
 
   // CORS
   applyCors, // (headers: Headers, req: Request, options: CorsOptions) => void
