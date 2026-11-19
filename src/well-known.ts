@@ -67,6 +67,12 @@ export const PROTECTED_RESOURCE_PATH = WELL_KNOWN_PR;
 /** Pathname for the authorization-server well-known document. */
 export const AUTHORIZATION_SERVER_PATH = WELL_KNOWN_AS;
 
+export function authorizationServerMetadataUrl(issuer: string): string {
+  const { origin, pathname } = new URL(issuer);
+  const path = pathname.replace(/\/+$/, "");
+  return `${origin}${WELL_KNOWN_AS}${path}`;
+}
+
 /**
  * Apply the RFC 9728 §3.1 path-insertion rule: `/mcp` publishes at `/.well-known/oauth-protected-resource/mcp`.
  * Delegates to the SDK so the route cannot drift from its reading of the rule.

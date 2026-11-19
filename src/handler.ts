@@ -15,6 +15,7 @@ import {
   PROTECTED_RESOURCE_PATH,
   protectedResourcePath,
   AUTHORIZATION_SERVER_PATH,
+  authorizationServerMetadataUrl,
   protectedResourceResponse,
   authorizationServerResponse,
 } from "./well-known.js";
@@ -102,13 +103,13 @@ export function buildHandler<Env = unknown>(
     // Coalesce concurrent requests onto a single in-flight fetch.
     if (discoveryInFlight !== null) return discoveryInFlight;
 
-    const url = `${as}/.well-known/oauth-authorization-server`;
+    const url = authorizationServerMetadataUrl(as);
     discoveryInFlight = globalThis
       .fetch(url)
       .then(async (r) => {
         if (!r.ok) return null;
         const body: unknown = await r.json();
-        return isAuthorizationServerMetadata(body) ? body : null;
+        return isAuthorizationServerMetadata(body) && body.issuer === as ? body : null;
       })
       .catch(() => null)
       .then((result) => {
