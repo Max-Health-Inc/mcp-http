@@ -437,6 +437,67 @@ describe("POST /mcp — auth gate", () => {
     expect(res.status).not.toBe(401);
   });
 
+  describe("requireResourceAudience", () => {
+    const tokenFor = (aud: unknown): string => {
+      const payload = btoa(
+        JSON.stringify({ sub: "u1", exp: Math.floor(Date.now() / 1000) + 3600, aud }),
+      )
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+      return `eyJ.${payload}.sig`;
+    };
+    const strict = createMcpHttpHandler(makeConfig({ requireResourceAudience: true }));
+    const initialize = {
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+    };
+
+    it("challenges a token issued for another resource, pointing at this resource's metadata", async () => {
+      const res = await strict(
+        makeReq("/mcp", "POST", tokenFor("https://fhir.example.com/R4"), initialize),
+      );
+      expect(res.status).toBe(401);
+      const challenge = res.headers.get("WWW-Authenticate") ?? "";
+      expect(challenge).toContain('error="invalid_token"');
+      expect(challenge).toContain(
+        `resource_metadata="${BASE}/.well-known/oauth-protected-resource/mcp"`,
+      );
+    });
+
+    it("challenges a JWT that names no audience", async () => {
+      expect(
+        (await strict(makeReq("/mcp", "POST", validToken(), initialize))).status,
+      ).toBe(401);
+    });
+
+    it("admits a token whose aud names this endpoint, alone or among others", async () => {
+      expect(
+        (await strict(makeReq("/mcp", "POST", tokenFor(`${BASE}/mcp`), initialize)))
+          .status,
+      ).not.toBe(401);
+      expect(
+        (
+          await strict(
+            makeReq("/mcp", "POST", tokenFor(["other", `${BASE}/mcp`]), initialize),
+          )
+        ).status,
+      ).not.toBe(401);
+    });
+
+    it("leaves opaque tokens to the upstream, and is off unless asked for", async () => {
+      expect(
+        (await strict(makeReq("/mcp", "POST", "opaque-token-xyz", initialize))).status,
+      ).not.toBe(401);
+      expect(
+        (
+          await handler(
+            makeReq("/mcp", "POST", tokenFor("https://fhir.example.com/R4"), initialize),
+          )
+        ).status,
+      ).not.toBe(401);
+    });
+  });
+
   it("attaches CORS headers even on 401", async () => {
     const res = await handler(makeReq("/mcp", "POST"));
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");

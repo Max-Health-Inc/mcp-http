@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Add new entries directly below. Keep this line: it makes a release merge conflict rather than file them under a published version. -->
 
+### Added
+
+- **`requireResourceAudience` answers a token issued for another server with a 401 challenge.** With it on, a JWT whose `aud` does not name the endpoint's resource URL gets `invalid_token` and the `resource_metadata` pointer, so an MCP client signs in for this server (RFC 8707) instead of handing over a token meant for something else. The check decodes only and lets opaque tokens through, like the expiry check. It is off by default.
+
 ## [0.7.3] — 2026-11-13
 
 ### Added

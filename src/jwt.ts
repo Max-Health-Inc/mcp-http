@@ -42,6 +42,15 @@ function decodeJwtPayload(token: string): object | null {
   }
 }
 
+/** False only when a decodable JWT's `aud` does not contain `resource`; opaque or malformed tokens return true. */
+export function jwtNamesAudience(token: string, resource: string): boolean {
+  const payload = decodeJwtPayload(token.trim());
+  if (payload === null) return true;
+  const aud: unknown = "aud" in payload ? payload.aud : undefined;
+  if (typeof aud === "string") return aud === resource;
+  return Array.isArray(aud) && aud.includes(resource);
+}
+
 /** True only when a numeric `exp` is past the skew buffer; opaque, malformed or exp-less tokens return false. */
 export function isJwtExpired(token: string): boolean {
   const payload = decodeJwtPayload(token.trim());

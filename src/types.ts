@@ -116,6 +116,12 @@ export interface McpHttpHandlerConfig<Env = unknown> {
    */
   earlyRejectExpiredTokens?: boolean;
 
+  /**
+   * Answer 401 `invalid_token` when a JWT's `aud` does not name this endpoint's resource URL, so the
+   * client fetches a token issued for this server (MCP authorization, RFC 8707). Decoding only. Default: `false`.
+   */
+  requireResourceAudience?: boolean;
+
   /** CORS configuration, or `false` to disable. Default: `"*"` with all MCP headers. */
   cors?: false | CorsOptions;
 
