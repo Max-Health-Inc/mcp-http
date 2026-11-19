@@ -9,6 +9,7 @@ import { isAuthorizationServerMetadata } from "./types.js";
 import { handlePreflight, isOriginAllowed, withCors } from "./cors.js";
 import { extractBearer, isJwtExpired, jwtNamesAudience } from "./jwt.js";
 import { handleMcpPost } from "./transport.js";
+import { isVerifiedAccessToken } from "./verify.js";
 import type { HandleMcpPostOptions } from "./transport.js";
 import {
   PROTECTED_RESOURCE_PATH,
@@ -38,6 +39,15 @@ function unauthorizedResponse(
   return bearerAuthChallengeResponse(new OAuthError("invalid_token", description), {
     resourceMetadataUrl,
   });
+}
+
+async function trustedIssuers(
+  option: NonNullable<McpHttpHandlerConfig["verifyAccessTokens"]>,
+): Promise<readonly string[]> {
+  if (option === true || option === false) return [];
+  const issuers = option.issuers;
+  if (issuers === undefined) return [];
+  return typeof issuers === "function" ? issuers() : issuers;
 }
 
 export type McpHandler<Env = unknown> = (
@@ -272,7 +282,38 @@ export function buildHandler<Env = unknown>(
         }
 
         const resourceUrl = `${new URL(req.url).origin}${mcpPath}`;
-        if (
+        if (config.verifyAccessTokens) {
+          const metadata =
+            config.authorizationServerMetadata ?? (await resolveAsMetadata());
+          if (metadata?.jwks_uri === undefined) {
+            return respond(
+              toJsonRpcErrorResponse(
+                503,
+                JSON_RPC_ERROR_CODES.INTERNAL_ERROR,
+                "The authorization server's signing keys are unavailable",
+              ),
+              "error",
+            );
+          }
+          const verified = await isVerifiedAccessToken(token, {
+            jwksUri: metadata.jwks_uri,
+            issuers: [
+              metadata.issuer,
+              ...(await trustedIssuers(config.verifyAccessTokens)),
+            ],
+            ...(config.requireResourceAudience === true ? { audience: resourceUrl } : {}),
+          });
+          if (!verified) {
+            return respond(
+              unauthorizedResponse(
+                req,
+                prmPath,
+                `The access token could not be verified for ${resourceUrl}`,
+              ),
+              "unauthorized",
+            );
+          }
+        } else if (
           config.requireResourceAudience === true &&
           !jwtNamesAudience(token, resourceUrl)
         ) {

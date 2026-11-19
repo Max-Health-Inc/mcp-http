@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Add new entries directly below. Keep this line: it makes a release merge conflict rather than file them under a published version. -->
 
+### Added
+
+- **`verifyAccessTokens` validates every bearer before anything is served.** The MCP authorization spec has a server validate access tokens per OAuth 2.1 §5.2 before processing a request; until now `initialize` and `tools/list` ran on a token nobody had checked. With it on, the token must be a JWT whose signature verifies against the authorization server's `jwks_uri` (from the static or discovered RFC 8414 metadata), whose `iss` is that server's `issuer` or one listed in `issuers`, and which has not expired; with `requireResourceAudience`, its `aud` must name the endpoint. Anything else gets the 401 `invalid_token` challenge, and missing signing keys a 503. `issuers` takes a list or an async function, for an authorization server that fronts an IdP whose tokens carry the IdP's own issuer. Off by default. Adds `jose` as the package's first runtime dependency.
+
 ## [0.7.4] — 2026-11-19
 
 ### Added
