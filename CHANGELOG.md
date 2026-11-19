@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Add new entries directly below. Keep this line: it makes a release merge conflict rather than file them under a published version. -->
 
+## [0.7.4] — 2026-11-19
+
 ### Added
 
 - **`requireResourceAudience` answers a token issued for another server with a 401 challenge.** With it on, a JWT whose `aud` does not name the endpoint's resource URL gets `invalid_token` and the `resource_metadata` pointer, so an MCP client signs in for this server (RFC 8707) instead of handing over a token meant for something else. The check decodes only and lets opaque tokens through, like the expiry check. It is off by default.
@@ -273,7 +275,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.0...v0.7.1
