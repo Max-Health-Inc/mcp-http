@@ -7,7 +7,7 @@ import type {
 } from "./types.js";
 import { isAuthorizationServerMetadata } from "./types.js";
 import { handlePreflight, isOriginAllowed, withCors } from "./cors.js";
-import { extractBearer, isJwtExpired } from "./jwt.js";
+import { extractBearer, isJwtExpired, jwtNamesAudience } from "./jwt.js";
 import { handleMcpPost } from "./transport.js";
 import type { HandleMcpPostOptions } from "./transport.js";
 import {
@@ -268,6 +268,21 @@ export function buildHandler<Env = unknown>(
           return respond(
             unauthorizedResponse(req, prmPath, "The access token has expired"),
             "token-expired",
+          );
+        }
+
+        const resourceUrl = `${new URL(req.url).origin}${mcpPath}`;
+        if (
+          config.requireResourceAudience === true &&
+          !jwtNamesAudience(token, resourceUrl)
+        ) {
+          return respond(
+            unauthorizedResponse(
+              req,
+              prmPath,
+              `The access token was not issued for ${resourceUrl}`,
+            ),
+            "unauthorized",
           );
         }
       }
