@@ -122,6 +122,14 @@ export interface McpHttpHandlerConfig<Env = unknown> {
    */
   requireResourceAudience?: boolean;
 
+  /**
+   * Verify every bearer as a JWT before serving (OAuth 2.1 §5.2, RFC 9068 §4): its signature against the
+   * authorization server's `jwks_uri`, `iss` against its `issuer` plus `issuers`, and `exp`. With
+   * `requireResourceAudience`, `aud` must name this endpoint. Anything else gets a 401 challenge. Default: off.
+   */
+  verifyAccessTokens?:
+    boolean | { issuers?: readonly string[] | (() => Promise<readonly string[]>) };
+
   /** CORS configuration, or `false` to disable. Default: `"*"` with all MCP headers. */
   cors?: false | CorsOptions;
 

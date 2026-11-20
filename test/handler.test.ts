@@ -173,6 +173,43 @@ describe("GET /.well-known/oauth-authorization-server — discoverAuthorizationS
   );
 
   it.serial(
+    "inserts the well-known segment before an issuer's path, and refuses a document naming another issuer",
+    async () => {
+      const issuer = "https://auth.example.com/auth/realms/main";
+      let capturedUrl = "";
+      let served: unknown = { ...AS_METADATA, issuer };
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = ((url: unknown) => {
+        capturedUrl = String(url);
+        return Promise.resolve(new Response(JSON.stringify(served)));
+      }) as unknown as typeof fetch;
+      try {
+        const handler = createMcpHttpHandler(
+          makeConfig({ authorizationServer: issuer, discoverAuthorizationServer: true }),
+        );
+        const res = await handler(
+          makeReq("/.well-known/oauth-authorization-server", "GET"),
+        );
+        expect(capturedUrl).toBe(
+          "https://auth.example.com/.well-known/oauth-authorization-server/auth/realms/main",
+        );
+        expect(res.status).toBe(200);
+
+        served = { ...AS_METADATA, issuer: "https://auth.example.com" };
+        const mismatched = createMcpHttpHandler(
+          makeConfig({ authorizationServer: issuer, discoverAuthorizationServer: true }),
+        );
+        expect(
+          (await mismatched(makeReq("/.well-known/oauth-authorization-server", "GET")))
+            .status,
+        ).toBe(502);
+      } finally {
+        globalThis.fetch = origFetch;
+      }
+    },
+  );
+
+  it.serial(
     "caches the result — fetch is called only once across multiple requests within TTL",
     async () => {
       let callCount = 0;
