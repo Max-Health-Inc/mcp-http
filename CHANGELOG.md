@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- Add new entries directly below. Keep this line: it makes a release merge conflict rather than file them under a published version. -->
 
+## [0.7.5] — 2026-11-20
+
 ### Fixed
 
 - **Authorization server discovery follows RFC 8414 for an issuer with a path.** `discoverAuthorizationServer` fetched `{issuer}/.well-known/oauth-authorization-server`, which is only right for an issuer without a path; it now inserts the well-known segment between host and path (§3.1), so `https://as.example/realms/main` is read from `https://as.example/.well-known/oauth-authorization-server/realms/main`. A document whose `issuer` is not the configured authorization server is refused (§3.3) instead of being proxied and cached.
@@ -283,7 +285,8 @@ Each of these still works and is scheduled for removal in 0.4.0. They carry `@de
 - Full TypeScript types exported (`McpHttpHandlerConfig`, `AuthorizationServerMetadata`, `ProtectedResourceMetadata`, etc.)
 - 107 tests, 98%+ line coverage
 
-[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/Max-Health-Inc/mcp-http/compare/v0.7.1...v0.7.2
